@@ -1,0 +1,282 @@
+---
+title: Cursor Rules System
+description: Documentation for the cursor rules structure and organization
+priority: 0
+tags: [meta, documentation, cursor, rules]
+---
+
+# Cursor Rules System
+
+## Overview
+
+This project uses a modular cursor rules system stored in the `.cursor/rules/` directory. Each rule is a separate MDC (Markdown Code) file focused on a specific aspect of the codebase.
+
+## Directory Structure
+
+```
+.cursor/
+└── rules/
+    ├── README.md                          # Documentation for rules
+    ├── 00-cursor-rules-system.mdc        # This file (meta-rule)
+    ├── 00-project-overview.mdc           # Project overview
+    ├── 01-language-requirements.mdc       # Language policy
+    ├── 02-typescript-standards.mdc        # TypeScript standards
+    ├── 03-code-formatting.mdc             # Biome formatting
+    ├── 04-validation-patterns.mdc         # Zod validation
+    ├── 05-logging-standards.mdc           # Winston logging
+    ├── 06-google-sheets-integration.mdc   # Google Sheets API
+    ├── 07-testing-with-vitest.mdc         # Vitest testing
+    ├── 08-docker-containerization.mdc     # Docker practices
+    ├── 09-git-workflow.mdc                # Git standards
+    └── 10-security-practices.mdc          # Security rules
+```
+
+## File Naming Convention
+
+### Pattern
+
+```
+<priority>-<topic-name>.mdc
+```
+
+### Examples
+
+```
+00-cursor-rules-system.mdc     # Meta-rule (priority 0)
+01-language-requirements.mdc    # Critical (priority 1)
+02-typescript-standards.mdc     # High (priority 2)
+07-testing-with-vitest.mdc     # Medium (priority 4)
+```
+
+### Priority Levels
+
+- **Priority 0**: Meta-rules (documentation about rules themselves)
+- **Priority 1**: Critical rules (must follow always)
+- **Priority 2**: High priority (core code quality)
+- **Priority 3**: Medium priority (development practices)
+- **Priority 4**: Medium priority (integrations and tools)
+- **Priority 5**: Lower priority (workflow and conventions)
+
+## MDC File Format
+
+Each rule file MUST follow this structure:
+
+````markdown
+---
+title: Rule Title
+description: Brief description of what this rule covers
+priority: 0-5
+tags: [relevant, tags, for, searching]
+---
+
+# Rule Title
+
+## Overview
+
+Brief introduction to the rule...
+
+## Sections
+
+Organized content with:
+
+- Clear headings
+- Code examples (✅ correct / ❌ incorrect)
+- Explanations
+- Best practices
+
+## Examples
+
+### ✅ Correct
+
+\```typescript
+// Good example code
+\```
+
+### ❌ Incorrect
+
+\```typescript
+// Bad example code with explanation why it's wrong
+\```
+````
+
+## YAML Frontmatter Requirements
+
+Each rule file MUST have YAML frontmatter with these fields:
+
+```yaml
+---
+title: Short descriptive title
+description: One-line description of the rule's purpose
+priority: 0-5 (number)
+tags: [array, of, relevant, keywords]
+---
+```
+
+## Adding New Rules
+
+### Steps
+
+1. **Determine priority** - Where does this rule fit?
+2. **Choose topic name** - Use kebab-case (e.g., `error-handling`)
+3. **Create file** - Follow naming convention: `<priority>-<topic>.mdc`
+4. **Add frontmatter** - Include all required YAML fields
+5. **Write content** - Follow the MDC format structure
+6. **Include examples** - Show correct (✅) and incorrect (❌) usage
+7. **Update README** - Add to `.cursor/rules/README.md` list
+
+### File Creation Example
+
+```bash
+# Create new rule file
+touch .cursor/rules/04-error-handling.mdc
+
+# Edit with proper structure
+```
+
+### Content Template
+
+````markdown
+---
+title: Error Handling
+description: Error handling patterns and best practices
+priority: 3
+tags: [errors, exceptions, try-catch]
+---
+
+# Error Handling
+
+## Overview
+
+Brief description...
+
+## Patterns
+
+### ✅ Correct
+
+\```typescript
+try {
+await operation();
+} catch (error) {
+logger.error('Operation failed', { error });
+throw error;
+}
+\```
+
+### ❌ Incorrect
+
+\```typescript
+try {
+await operation();
+} catch (error) {
+// Silent failure - bad!
+}
+\```
+````
+
+## Updating Existing Rules
+
+1. **Locate the rule** - Find in `.cursor/rules/`
+2. **Edit the file** - Modify content as needed
+3. **Keep format** - Maintain MDC structure
+4. **Update examples** - Ensure examples are current
+5. **Test examples** - Verify code examples work
+6. **Commit changes** - Use conventional commit message
+
+## Rule Organization Best Practices
+
+### Do's ✅
+
+- **Keep focused** - One topic per file
+- **Use examples** - Show don't just tell
+- **Be specific** - Concrete examples over abstract rules
+- **Stay current** - Update when dependencies change
+- **Cross-reference** - Link to related rules when appropriate
+
+### Don'ts ❌
+
+- **Don't duplicate** - Avoid repeating information across files
+- **Don't over-generalize** - Keep examples specific to this project
+- **Don't leave outdated** - Update when technology changes
+- **Don't skip frontmatter** - Always include complete YAML
+
+## File Location Rules
+
+### ✅ Rules Belong In `.cursor/rules/`
+
+- Project-specific coding standards
+- Technology stack guidelines
+- Development workflow rules
+- Architecture patterns
+- Security practices
+- Testing conventions
+
+### ❌ Do NOT Put In `.cursor/rules/`
+
+- Project business logic
+- Actual source code
+- Configuration files
+- Documentation for end-users
+- Deployment secrets
+- Temporary notes
+
+## Maintenance
+
+### Regular Updates
+
+- **Quarterly review** - Check all rules for relevance
+- **Version updates** - Update when dependencies upgrade
+- **Remove obsolete** - Delete rules that no longer apply
+- **Consolidate** - Merge similar rules if needed
+
+### Version Control
+
+- **Track changes** - Commit rule changes with meaningful messages
+- **Review PRs** - Include rule changes in code reviews
+- **Document changes** - Update README when adding/removing rules
+
+## Integration with Cursor AI
+
+Cursor AI automatically:
+
+- Loads all `.mdc` files from `.cursor/rules/`
+- Applies rules during code generation
+- References rules when suggesting code
+- Uses priority to determine importance
+
+## Benefits of This System
+
+1. **Modular** - Easy to find and update specific rules
+2. **Scalable** - Add new rules without affecting existing ones
+3. **Versioned** - Track changes through git
+4. **Searchable** - Find rules by tags or filename
+5. **Maintainable** - Update individual rules independently
+6. **AI-Friendly** - Cursor AI can load relevant rules as needed
+7. **Documented** - Each rule is self-documenting
+
+## Example Workflow
+
+```bash
+# Developer needs to add validation
+# 1. Check relevant rule
+cat .cursor/rules/04-validation-patterns.mdc
+
+# 2. Follow examples
+# 3. Ask Cursor AI for help
+#    (It will reference the rule automatically)
+
+# 4. If pattern missing, add to rule
+vim .cursor/rules/04-validation-patterns.mdc
+
+# 5. Commit the update
+git add .cursor/rules/04-validation-patterns.mdc
+git commit -m "docs(rules): add email validation pattern"
+```
+
+## Meta-Rule Note
+
+This file (`00-cursor-rules-system.mdc`) is itself a cursor rule that documents the cursor rules system. It should be updated whenever:
+
+- The rules structure changes
+- New conventions are adopted
+- The file naming pattern changes
+- The MDC format requirements change

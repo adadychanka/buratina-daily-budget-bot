@@ -1,0 +1,188 @@
+---
+title: Testing with Vitest
+description: Testing standards using Vitest framework
+priority: 4
+tags: [testing, vitest, quality]
+---
+
+# Testing with Vitest
+
+## Use Vitest, NOT Jest
+
+This project uses **Vitest 3.2.4** for testing.
+
+- ❌ Do NOT use Jest
+- ✅ Use Vitest exclusively
+
+## Test File Location
+
+- Place tests in `tests/` directory
+- Use `.test.ts` or `.spec.ts` naming convention
+
+```
+tests/
+├── validators.test.ts
+├── formatters.test.ts
+├── services/
+│   └── google-sheets.test.ts
+└── bot/
+    └── handlers.test.ts
+```
+
+## Test Structure
+
+Use the **Arrange-Act-Assert** pattern:
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { validateAmount } from "../src/utils/validators";
+
+describe("Validators", () => {
+  describe("validateAmount", () => {
+    it("should validate positive numbers", () => {
+      // Arrange
+      const input = "100";
+
+      // Act
+      const result = validateAmount(input);
+
+      // Assert
+      expect(result.isValid).toBe(true);
+      expect(result.amount).toBe(100);
+    });
+
+    it("should reject negative numbers", () => {
+      // Arrange
+      const input = "-10";
+
+      // Act
+      const result = validateAmount(input);
+
+      // Assert
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe("Amount cannot be negative");
+    });
+
+    it("should reject invalid input", () => {
+      // Arrange
+      const input = "abc";
+
+      // Act
+      const result = validateAmount(input);
+
+      // Assert
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe("Please enter a valid number");
+    });
+  });
+});
+```
+
+## Test Commands
+
+```bash
+# Run tests in watch mode
+npm run test
+
+# Run tests once
+npm run test:run
+
+# Run tests with coverage
+npm run test:coverage
+
+# Open test UI
+npm run test:ui
+
+# Run tests for CI/CD
+npm run test:ci
+```
+
+## Vitest Configuration
+
+Configuration in `vitest.config.ts`:
+
+```typescript
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: "node",
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      exclude: [
+        "node_modules/",
+        "dist/",
+        "tests/",
+        "**/*.d.ts",
+        "**/*.config.*",
+      ],
+    },
+  },
+});
+```
+
+## What to Test
+
+### ✅ Always Test
+
+- **Validators**: All validation functions
+- **Formatters**: Data formatting logic
+- **Utilities**: Pure functions
+- **Error handling**: Edge cases and error conditions
+- **Business logic**: Core application logic
+
+### ❌ Don't Test
+
+- Third-party libraries (Telegraf, Prisma, etc.)
+- Configuration files
+- Type definitions
+- Simple getters/setters
+
+## Mocking
+
+Use Vitest's built-in mocking capabilities:
+
+```typescript
+import { describe, it, expect, vi } from "vitest";
+import { logger } from "../src/config/logger";
+
+describe("Error Handling", () => {
+  it("should log errors", () => {
+    // Mock the logger
+    const loggerSpy = vi.spyOn(logger, "error");
+
+    // Test code that logs errors
+    handleError(new Error("Test error"));
+
+    // Verify logger was called
+    expect(loggerSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Test error")
+    );
+
+    // Restore original implementation
+    loggerSpy.mockRestore();
+  });
+});
+```
+
+## Coverage Requirements
+
+- **Minimum coverage**: 70% overall
+- **Critical paths**: 90%+ coverage
+- Run coverage checks in CI/CD
+
+```bash
+npm run test:coverage
+```
+
+## Best Practices
+
+1. **Write tests first** for new features (TDD when possible)
+2. **Test behavior, not implementation**
+3. **Keep tests simple and focused**
+4. **Use descriptive test names**
+5. **Avoid test interdependence**
+6. **Mock external dependencies**
+7. **Test edge cases and error conditions**

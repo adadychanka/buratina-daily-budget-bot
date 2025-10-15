@@ -1,0 +1,265 @@
+---
+title: Security Practices
+description: Security standards and best practices
+priority: 1
+tags: [security, credentials, validation]
+---
+
+# Security Practices
+
+## Critical Security Rules
+
+### 1. Never Commit Credentials
+
+**NEVER commit to git:**
+
+- ❌ API keys
+- ❌ Bot tokens
+- ❌ Database passwords
+- ❌ Service Account JSON files
+- ❌ Private keys
+- ❌ OAuth secrets
+
+### ✅ How to Handle Credentials
+
+```bash
+# Store in environment variables
+BOT_TOKEN=your_token_here
+GOOGLE_CREDENTIALS_PATH=./src/services/credentials/key.json
+
+# Add to .gitignore
+src/services/credentials/*.json
+.env
+*.key
+*.pem
+```
+
+### 2. Validate All User Input
+
+**Always validate with Zod** before processing:
+
+```typescript
+// ✅ Correct
+function processUserInput(data: unknown): Report {
+  const validated = ReportSchema.parse(data); // Throws if invalid
+  return validated;
+}
+
+// ❌ Incorrect - No validation
+function processUserInput(data: any): Report {
+  return data as Report; // Unsafe!
+}
+```
+
+### 3. Use TypeScript Strict Mode
+
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true
+  }
+}
+```
+
+### 4. Secure Docker Containers
+
+```dockerfile
+# Run as non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S bot -u 1001
+USER bot
+
+# Read-only credentials
+COPY --chown=bot:nodejs ./credentials /app/credentials
+```
+
+```yaml
+# docker-compose.yml
+volumes:
+  - ./credentials:/app/credentials:ro # Read-only!
+```
+
+### 5. Environment Variable Security
+
+```typescript
+// ✅ Correct - Validate on startup
+const configSchema = z.object({
+  botToken: z.string().min(1, "BOT_TOKEN is required"),
+  databaseUrl: z.string().url("Invalid DATABASE_URL"),
+});
+
+const config = configSchema.parse({
+  botToken: process.env.BOT_TOKEN,
+  databaseUrl: process.env.DATABASE_URL,
+});
+
+// ❌ Incorrect - No validation
+const config = {
+  botToken: process.env.BOT_TOKEN, // Could be undefined!
+  databaseUrl: process.env.DATABASE_URL,
+};
+```
+
+## Logging Security
+
+### ✅ Safe Logging
+
+```typescript
+logger.info("User authenticated", {
+  userId: user.id,
+  username: user.username,
+});
+```
+
+### ❌ Unsafe Logging
+
+```typescript
+// Never log sensitive data!
+logger.info("User authenticated", {
+  userId: user.id,
+  password: user.password, // ❌ Never log passwords
+  token: user.apiToken, // ❌ Never log tokens
+  creditCard: user.cardNumber, // ❌ Never log PII
+});
+```
+
+## Error Handling Security
+
+### ✅ Safe Error Messages
+
+```typescript
+// Don't expose internal details to users
+try {
+  await database.query(sql);
+} catch (error) {
+  logger.error("Database error", { error }); // Log full error
+  ctx.reply("An error occurred. Please try again later."); // Generic message
+}
+```
+
+### ❌ Unsafe Error Messages
+
+```typescript
+// Don't expose internal details
+try {
+  await database.query(sql);
+} catch (error) {
+  ctx.reply(`Database error: ${error.message}`); // ❌ Exposing internals!
+}
+```
+
+## Rate Limiting
+
+Implement rate limiting for bot commands:
+
+```typescript
+const rateLimiter = new Map<number, number>();
+
+bot.use(async (ctx, next) => {
+  const userId = ctx.from?.id;
+  if (!userId) return next();
+
+  const now = Date.now();
+  const lastRequest = rateLimiter.get(userId) || 0;
+
+  if (now - lastRequest < 1000) {
+    // 1 second cooldown
+    await ctx.reply("Please wait before sending another command.");
+    return;
+  }
+
+  rateLimiter.set(userId, now);
+  return next();
+});
+```
+
+## Dependency Security
+
+### Keep Dependencies Updated
+
+```bash
+# Check for vulnerabilities
+npm audit
+
+# Fix vulnerabilities
+npm audit fix
+
+# Update dependencies
+npm update
+```
+
+### Review New Dependencies
+
+Before adding a new package:
+
+1. Check npm download stats
+2. Review GitHub repository
+3. Check for known vulnerabilities
+4. Verify maintenance status
+5. Review license
+
+## Database Security
+
+### Use Parameterized Queries
+
+```typescript
+// ✅ Correct - Prisma handles this automatically
+const report = await prisma.report.findUnique({
+  where: { id: reportId },
+});
+
+// ❌ Never use string concatenation for queries
+// const query = `SELECT * FROM reports WHERE id = '${reportId}'`;  // SQL injection risk!
+```
+
+### Secure Database Connection
+
+```bash
+# Use strong connection strings
+DATABASE_URL="file:./data/app.db"
+
+# In production, use encrypted connections
+DATABASE_URL="postgresql://user:password@host:5432/db?sslmode=require"
+```
+
+## API Security
+
+### Google Sheets API
+
+```typescript
+// Use Service Account with minimum required permissions
+const auth = new google.auth.GoogleAuth({
+  keyFile: config.googleCredentialsPath,
+  scopes: ["https://www.googleapis.com/auth/spreadsheets"], // Minimum scope
+});
+```
+
+## Security Checklist
+
+- [ ] No credentials in code or git
+- [ ] All user input validated with Zod
+- [ ] TypeScript strict mode enabled
+- [ ] Docker containers run as non-root
+- [ ] Environment variables validated on startup
+- [ ] No sensitive data in logs
+- [ ] Generic error messages for users
+- [ ] Rate limiting implemented
+- [ ] Dependencies up to date
+- [ ] No SQL injection vulnerabilities
+- [ ] API permissions minimized
+- [ ] Credentials stored securely
+- [ ] .gitignore configured correctly
+
+## Incident Response
+
+If credentials are exposed:
+
+1. **Immediately rotate all exposed credentials**
+2. **Remove from git history**
+3. **Review access logs**
+4. **Notify affected users if needed**
+5. **Update security procedures**
+6. **Document the incident**

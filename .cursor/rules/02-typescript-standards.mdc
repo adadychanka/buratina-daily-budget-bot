@@ -1,0 +1,165 @@
+---
+title: TypeScript Standards
+description: TypeScript coding standards and best practices
+priority: 2
+tags: [typescript, types, standards]
+---
+
+# TypeScript Standards
+
+## Strict Mode
+
+**Always use TypeScript strict mode** - No exceptions.
+
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true
+  }
+}
+```
+
+## Type Imports
+
+Use `import type` for type-only imports to improve build performance and clarity.
+
+### ✅ Correct
+
+```typescript
+import type { BotContext } from "../types/bot";
+import type { ReportData } from "../types/report";
+import { logger } from "../config/logger";
+```
+
+### ❌ Incorrect
+
+```typescript
+import { BotContext } from "../types/bot"; // Not a type-only import
+import { ReportData, logger } from "../types/report"; // Mixing types and values
+```
+
+## No `any` Types
+
+**Never use `any`** - Use `unknown` or proper typing instead.
+
+### ✅ Correct
+
+```typescript
+function processError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  return "Unknown error";
+}
+```
+
+### ❌ Incorrect
+
+```typescript
+function processError(error: any): string {
+  return error.message; // Unsafe!
+}
+```
+
+## Explicit Return Types
+
+Always specify return types for public functions and methods.
+
+### ✅ Correct
+
+```typescript
+export function validateAmount(value: string): {
+  isValid: boolean;
+  amount?: number;
+  error?: string;
+} {
+  const amount = parseFloat(value);
+  if (Number.isNaN(amount)) {
+    return { isValid: false, error: "Please enter a valid number" };
+  }
+  return { isValid: true, amount };
+}
+```
+
+### ❌ Incorrect
+
+```typescript
+export function validateAmount(value: string) {
+  // Missing return type
+  const amount = parseFloat(value);
+  return { isValid: true, amount };
+}
+```
+
+## Interface vs Type
+
+- **Use `interface`** for object shapes
+- **Use `type`** for unions, intersections, and primitives
+
+### ✅ Correct
+
+```typescript
+// Interface for objects
+interface BotContext extends Context {
+  session?: {
+    reportData?: Partial<ReportData>;
+  };
+}
+
+// Type for unions
+type LogLevel = "error" | "warn" | "info" | "debug";
+
+// Type for intersections
+type AuthenticatedContext = BotContext & { userId: number };
+```
+
+## Type Inference from Zod
+
+Use Zod schemas as the source of truth for types.
+
+```typescript
+import { z } from "zod";
+
+// Define schema
+export const ExpenseSchema = z.object({
+  amount: z.number().positive(),
+  description: z.string().min(1),
+});
+
+// Infer type from schema
+export type Expense = z.infer<typeof ExpenseSchema>;
+```
+
+## Async/Await
+
+Always use async/await (never raw Promises with `.then()`).
+
+### ✅ Correct
+
+```typescript
+export const startHandler = async (ctx: BotContext): Promise<void> => {
+  try {
+    await ctx.reply("Welcome!");
+  } catch (error) {
+    logger.error("Error in start handler:", error);
+    throw error;
+  }
+};
+```
+
+### ❌ Incorrect
+
+```typescript
+export const startHandler = (ctx: BotContext) => {
+  return ctx.reply("Welcome!").then(() => {
+    // ... chained promises
+  });
+};
+```

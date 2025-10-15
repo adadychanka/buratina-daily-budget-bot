@@ -1,0 +1,68 @@
+---
+title: Language Requirements
+description: Strict language policy for the entire codebase
+priority: 1
+tags: [language, english, standards]
+---
+
+# Language Requirements
+
+## English-Only Policy
+
+**ALL code, comments, and documentation MUST be in English only.**
+
+### This Applies To
+
+- ✅ Code comments (inline, block, JSDoc)
+- ✅ Variable names, function names, class names
+- ✅ User-facing messages (bot replies, error messages)
+- ✅ Documentation (README, API docs, inline docs)
+- ✅ Commit messages
+- ✅ Configuration files and comments
+- ✅ Test descriptions and assertions
+- ✅ Log messages
+- ✅ Dockerfile comments
+- ✅ Environment variable names
+
+### Forbidden
+
+- ❌ Russian language (Cyrillic characters)
+- ❌ Any non-English language in code or comments
+- ❌ Mixed language comments (e.g., English + Russian)
+
+### Examples
+
+#### ✅ Correct
+
+```typescript
+// Calculate total sales amount
+const calculateTotalSales = (
+  cashAmount: number,
+  cardAmount: number
+): number => {
+  return cashAmount + cardAmount;
+};
+
+// Log the result
+logger.info("Total sales calculated successfully");
+```
+
+#### ❌ Incorrect
+
+```typescript
+// Вычисляем общую сумму продаж
+const calculateTotalSales = (nalichnye: number, karta: number): number => {
+  return nalichnye + karta;
+};
+
+// Логируем результат
+logger.info("Продажи рассчитаны успешно");
+```
+
+## Rationale
+
+- Ensures code is accessible to international developers
+- Maintains consistency across the entire codebase
+- Facilitates code reviews and collaboration
+- Professional standard for open-source projects
+- Better compatibility with AI assistants and tooling

@@ -1,0 +1,156 @@
+---
+title: Code Formatting with Biome
+description: Code formatting rules using Biome (not ESLint/Prettier)
+priority: 2
+tags: [formatting, biome, style]
+---
+
+# Code Formatting with Biome
+
+## Important: Use Biome, NOT ESLint/Prettier
+
+This project uses **Biome 2.2.6** for both linting and formatting.
+
+- ❌ Do NOT use ESLint
+- ❌ Do NOT use Prettier
+- ✅ Use Biome exclusively
+
+## Formatting Rules
+
+### Quote Style
+
+**Always use single quotes (`'`)** for strings.
+
+```typescript
+// ✅ Correct
+import { Telegraf } from "telegraf";
+const message = "Hello, world!";
+const error = "An error occurred";
+
+// ❌ Incorrect
+import { Telegraf } from "telegraf";
+const message = "Hello, world!";
+```
+
+### Semicolons
+
+**Always use semicolons** - No ASI (Automatic Semicolon Insertion).
+
+```typescript
+// ✅ Correct
+const x = 5;
+logger.info("Message");
+return result;
+
+// ❌ Incorrect
+const x = 5;
+logger.info("Message");
+return result;
+```
+
+### Indentation
+
+- **2 spaces** (not tabs)
+- Consistent indentation for all code blocks
+
+```typescript
+// ✅ Correct
+export class Bot {
+  private bot: Telegraf<BotContext>;
+
+  constructor() {
+    this.bot = new Telegraf(config.botToken);
+  }
+}
+```
+
+### Line Width
+
+- **Maximum 100 characters** per line
+- Break long lines for readability
+
+```typescript
+// ✅ Correct
+const welcomeMessage =
+  "This is a long message that needs to be broken across multiple lines";
+
+// ❌ Incorrect (over 100 chars)
+const welcomeMessage =
+  "This is a very long message that exceeds the maximum line width of 100 characters and should be broken";
+```
+
+### Trailing Commas
+
+**Use ES5 trailing commas** (in arrays and objects, not in function parameters).
+
+```typescript
+// ✅ Correct
+const config = {
+  botToken: "xxx",
+  apiUrl: "xxx",
+  timeout: 30000, // Trailing comma
+};
+
+const items = [
+  "item1",
+  "item2",
+  "item3", // Trailing comma
+];
+
+// ❌ Incorrect
+function example(a: string, b: number) {} // No trailing comma in params
+```
+
+### Line Endings
+
+**Use LF (Unix-style)** line endings, not CRLF (Windows-style).
+
+## Imports Organization
+
+Organize imports in the following order:
+
+1. External dependencies (third-party packages)
+2. Type imports (with `import type`)
+3. Internal imports (project files)
+
+```typescript
+// 1. External dependencies
+import { Telegraf } from "telegraf";
+import { PrismaClient } from "@prisma/client";
+import winston from "winston";
+
+// 2. Type imports
+import type { BotContext } from "../types/bot";
+import type { ReportData } from "../types/report";
+
+// 3. Internal imports
+import { config } from "../config/settings";
+import { logger } from "../config/logger";
+import { validateAmount } from "../utils/validators";
+```
+
+## Running Biome
+
+```bash
+# Check code (lint + format)
+npm run check
+
+# Auto-fix issues
+npm run check:fix
+
+# Lint only
+npm run lint
+
+# Format only
+npm run format
+```
+
+## Pre-commit Requirements
+
+**Always run before committing:**
+
+```bash
+npm run check:fix  # Auto-fix what can be fixed
+npm run build      # Ensure it compiles
+npm run test:run   # Ensure tests pass
+```

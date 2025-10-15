@@ -1,0 +1,55 @@
+{
+  "name": "daily-budget-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for daily bar reports",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest --watch",
+    "test:ci": "vitest run --reporter=verbose --coverage",
+    "lint": "biome lint src/",
+    "lint:fix": "biome lint --write src/",
+    "format": "biome format src/",
+    "format:fix": "biome format --write src/",
+    "check": "biome check src/",
+    "check:fix": "biome check --write src/",
+    "check:ci": "biome ci src/",
+    "docker:build": "docker build -t daily-budget-bot .",
+    "docker:run": "docker run --env-file .env daily-budget-bot",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up --build",
+    "docker:prod": "docker-compose up --build -d"
+  },
+  "engines": {
+    "node": ">=22.20.0"
+  },
+  "dependencies": {
+    "telegraf": "^4.16.3",
+    "prisma": "^6.17.1",
+    "@prisma/client": "^6.17.1",
+    "googleapis": "^163.0.0",
+    "google-auth-library": "^9.0.0",
+    "zod": "^4.1.12",
+    "winston": "^3.18.3",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "ts-node": "^10.9.0",
+    "nodemon": "^3.1.0",
+    "@biomejs/biome": "^2.2.6",
+    "vitest": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
+    "@types/jest": "^29.5.0"
+  }
+}

@@ -1,0 +1,147 @@
+---
+title: Google Sheets Integration
+description: Google Sheets API integration using Service Account
+priority: 4
+tags: [google, sheets, api, authentication]
+---
+
+# Google Sheets Integration
+
+## Authentication Method
+
+**ALWAYS use Service Account** - Never use OAuth2 for this project.
+
+### Why Service Account?
+
+- ✅ No user interaction required
+- ✅ Perfect for server-to-server communication
+- ✅ Simpler setup for automated tasks
+- ✅ No token refresh logic needed
+
+### ❌ Do NOT Use
+
+- OAuth2 (requires user consent flow)
+- API Key only (insufficient permissions)
+- Personal credentials
+
+## Service Account Setup
+
+### 1. Create Service Account
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing one
+3. Navigate to "IAM & Admin" > "Service Accounts"
+4. Click "Create Service Account"
+5. Name it: `daily-budget-bot`
+6. Create and download JSON key
+
+### 2. Enable Google Sheets API
+
+1. Navigate to "APIs & Services" > "Library"
+2. Search for "Google Sheets API"
+3. Click "Enable"
+
+### 3. Share Google Sheet
+
+1. Open your target Google Sheet
+2. Click "Share" button
+3. Add Service Account email as "Editor"
+4. Email format: `service-account-name@project-id.iam.gserviceaccount.com`
+
+### 4. Configure Application
+
+```bash
+# .env
+GOOGLE_SHEETS_ID=your_google_sheet_id_here
+GOOGLE_CREDENTIALS_PATH=./src/services/credentials/service-account-key.json
+```
+
+## Credentials Storage
+
+- Store credentials in: `src/services/credentials/`
+- **NEVER commit credentials to git**
+- Add to `.gitignore`:
+
+```gitignore
+src/services/credentials/*.json
+```
+
+## Service Implementation
+
+```typescript
+// src/services/google-sheets.ts
+import { google } from "googleapis";
+import { config } from "../config/settings";
+import { logger } from "../config/logger";
+
+export class GoogleSheetsService {
+  private sheets;
+  private auth;
+
+  constructor() {
+    this.auth = new google.auth.GoogleAuth({
+      keyFile: config.googleCredentialsPath,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+
+    this.sheets = google.sheets({ version: "v4", auth: this.auth });
+  }
+
+  async appendRow(values: string[]): Promise<void> {
+    try {
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId: config.googleSheetsId,
+        range: "Sheet1!A:K",
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [values],
+        },
+      });
+
+      logger.info("Successfully appended row to Google Sheets");
+    } catch (error) {
+      logger.error("Failed to append row to Google Sheets:", error);
+      throw error;
+    }
+  }
+}
+```
+
+## Sheet Structure
+
+Expected column structure in Google Sheet:
+
+| Column | Type    | Description                      |
+| ------ | ------- | -------------------------------- |
+| A      | Date    | Auto-generated timestamp         |
+| B      | Numeric | Calculated total                 |
+| C-G    | Numeric | Individual numeric fields        |
+| H      | Numeric | Sum of multi-entry items         |
+| I      | Text    | Concatenated multi-entry details |
+| J      | Numeric | Final numeric value              |
+| K      | Text    | Optional notes/comments          |
+
+## Error Handling
+
+```typescript
+async function saveToSheets(data: ReportData): Promise<void> {
+  try {
+    const formattedData = formatReportForSheets(data);
+    await sheetsService.appendRow(formattedData);
+  } catch (error) {
+    logger.error("Google Sheets error", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      sheetId: config.googleSheetsId,
+    });
+    throw new Error("Failed to save report to Google Sheets");
+  }
+}
+```
+
+## Security Best Practices
+
+1. **Never log credentials**
+2. **Use read-only mounts in Docker** (`:ro`)
+3. **Limit Service Account permissions** (Editor role only for specific sheet)
+4. **Rotate credentials periodically**
+5. **Monitor API usage** in Google Cloud Console

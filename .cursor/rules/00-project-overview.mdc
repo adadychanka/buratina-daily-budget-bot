@@ -1,0 +1,75 @@
+---
+title: Project Overview
+description: High-level project information and technology stack
+priority: 1
+tags: [overview, setup, architecture]
+---
+
+# Daily Budget Bot - Project Overview
+
+## Description
+
+A Telegram bot built with Node.js and TypeScript for automated daily reporting with Google Sheets integration. The bot uses FSM (Finite State Machine) for step-by-step data collection.
+
+## Technology Stack
+
+### Core Technologies
+
+- **Runtime**: Node.js 22.20.0 LTS
+- **Language**: TypeScript 5.7+
+- **Target**: ES2022
+- **Module System**: CommonJS
+
+### Primary Libraries (October 2025)
+
+- **Telegraf**: 4.16.3 - Telegram Bot API framework
+- **Prisma**: 6.17.1 - ORM with SQLite (PostgreSQL-ready)
+- **Google APIs**: 163.0.0 - Google Sheets integration
+- **Zod**: 4.1.12 - Schema validation with TypeScript inference
+- **Winston**: 3.18.3 - Structured logging
+- **Dotenv**: 16.4.0 - Environment variable management
+
+### Development Tools
+
+- **Linter/Formatter**: Biome 2.2.6 (NOT ESLint/Prettier)
+- **Testing**: Vitest 3.2.4 (NOT Jest)
+- **Containerization**: Docker with multi-stage builds
+- **Development Server**: Nodemon 3.1.0
+
+## Project Structure
+
+```
+src/
+├── bot/                    # Bot logic
+│   ├── handlers/          # Command handlers (/start, /help, etc.)
+│   ├── keyboards/         # Telegram keyboards (inline & reply)
+│   ├── middleware/        # Bot middleware functions
+│   └── scenes/            # FSM scenes for step-by-step input
+├── config/                # Configuration
+│   ├── settings.ts        # App settings with Zod validation
+│   └── logger.ts          # Winston logger setup
+├── database/              # Database operations
+│   └── models/            # Custom Prisma extensions
+├── services/              # External services
+│   ├── google-sheets.ts   # Google Sheets service
+│   └── credentials/       # Service Account keys (NOT in git!)
+├── types/                 # TypeScript type definitions
+│   ├── bot.ts             # Bot-specific types
+│   ├── report.ts          # Zod schemas and inferred types
+│   └── database.ts        # Database types
+├── utils/                 # Utilities
+│   ├── validators.ts      # Input validators with Zod
+│   ├── formatters.ts      # Data formatters
+│   └── constants.ts       # App constants
+└── index.ts               # Application entry point
+
+tests/                     # Test files
+prisma/                    # Prisma schema and migrations
+```
+
+## Version Information
+
+- **Last Updated**: October 2025
+- **Node.js**: 22.20.0 LTS (minimum required)
+- **TypeScript**: 5.7+ (strict mode enabled)
+- All package versions are current as of October 2025

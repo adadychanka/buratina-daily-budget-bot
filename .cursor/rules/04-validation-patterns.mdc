@@ -1,0 +1,132 @@
+---
+title: Validation Patterns with Zod
+description: Data validation using Zod schemas
+priority: 3
+tags: [validation, zod, data]
+---
+
+# Validation Patterns with Zod
+
+## Use Zod for All Validation
+
+**Never write manual validation** - Always use Zod schemas.
+
+## Schema Definition Location
+
+- Define all Zod schemas in `src/types/`
+- Export both the schema and the inferred type
+
+```typescript
+// src/types/report.ts
+import { z } from "zod";
+
+// Define schema
+export const ExpenseSchema = z.object({
+  amount: z.number().positive("Expense amount must be positive"),
+  description: z.string().min(1, "Expense description is required"),
+});
+
+// Infer type from schema
+export type Expense = z.infer<typeof ExpenseSchema>;
+```
+
+## Validation Examples
+
+### Basic Validation
+
+```typescript
+export const ReportSchema = z.object({
+  cashAmount: z.number().min(0, "Cash amount must be non-negative"),
+  whiteCashAmount: z.number().min(0, "White cash amount must be non-negative"),
+  blackCashAmount: z.number().min(0, "Black cash amount must be non-negative"),
+  blackCashLocation: z.string().optional(),
+  cardSalesAmount: z.number().min(0, "Card sales amount must be non-negative"),
+  expenses: z.array(ExpenseSchema).default([]),
+  cashboxAmount: z.number().min(0, "Cashbox amount must be non-negative"),
+  notes: z.string().optional(),
+  totalSales: z.number().min(0, "Total sales must be non-negative"),
+});
+
+export type Report = z.infer<typeof ReportSchema>;
+```
+
+### Environment Variable Validation
+
+```typescript
+// src/config/settings.ts
+import { z } from "zod";
+
+const configSchema = z.object({
+  botToken: z.string().min(1, "BOT_TOKEN is required"),
+  databaseUrl: z.string().min(1, "DATABASE_URL is required"),
+  googleSheetsId: z.string().min(1, "GOOGLE_SHEETS_ID is required"),
+  googleCredentialsPath: z
+    .string()
+    .min(1, "GOOGLE_CREDENTIALS_PATH is required"),
+  nodeEnv: z.enum(["development", "production", "test"]).default("development"),
+  logLevel: z.enum(["error", "warn", "info", "debug"]).default("info"),
+});
+
+export type Config = z.infer<typeof configSchema>;
+
+export const config: Config = configSchema.parse({
+  botToken: process.env.BOT_TOKEN,
+  databaseUrl: process.env.DATABASE_URL,
+  googleSheetsId: process.env.GOOGLE_SHEETS_ID,
+  googleCredentialsPath: process.env.GOOGLE_CREDENTIALS_PATH,
+  nodeEnv: process.env.NODE_ENV,
+  logLevel: process.env.LOG_LEVEL,
+});
+```
+
+## Error Handling with Zod
+
+Always handle Zod validation errors gracefully.
+
+```typescript
+function validateUserInput(data: unknown): Report | null {
+  try {
+    return ReportSchema.parse(data);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      logger.error("Validation failed:", error.errors);
+      // Return user-friendly error messages
+      const messages = error.errors.map((err) => err.message).join(", ");
+      return null;
+    }
+    throw error;
+  }
+}
+```
+
+## Input Validators
+
+Create reusable validator functions in `src/utils/validators.ts`.
+
+```typescript
+export function validateAmount(value: string): {
+  isValid: boolean;
+  amount?: number;
+  error?: string;
+} {
+  const amount = parseFloat(value);
+
+  if (Number.isNaN(amount)) {
+    return { isValid: false, error: "Please enter a valid number" };
+  }
+
+  if (amount < 0) {
+    return { isValid: false, error: "Amount cannot be negative" };
+  }
+
+  return { isValid: true, amount };
+}
+```
+
+## Best Practices
+
+1. **Define schemas before types** - Let Zod infer the types
+2. **Use descriptive error messages** - Help users understand what went wrong
+3. **Validate early** - Validate at system boundaries (API inputs, environment variables)
+4. **Fail fast** - Don't proceed with invalid data
+5. **Log validation errors** - For debugging and monitoring

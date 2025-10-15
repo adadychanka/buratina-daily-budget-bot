@@ -1,0 +1,256 @@
+---
+title: Git Workflow
+description: Git commit standards and version control practices
+priority: 5
+tags: [git, commits, version-control]
+---
+
+# Git Workflow
+
+## Commit Message Format
+
+Use **Conventional Commits** format - All messages in English.
+
+### Format
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+### Types
+
+- **feat**: New feature
+- **fix**: Bug fix
+- **docs**: Documentation changes
+- **style**: Code style changes (formatting, no logic change)
+- **refactor**: Code refactoring (no feature add or bug fix)
+- **perf**: Performance improvements
+- **test**: Adding or updating tests
+- **chore**: Maintenance tasks, dependency updates
+- **ci**: CI/CD configuration changes
+- **build**: Build system changes
+
+### Examples
+
+```bash
+# Good commits
+git commit -m "feat: add expense tracking functionality"
+git commit -m "fix: resolve Google Sheets authentication error"
+git commit -m "docs: update README with setup instructions"
+git commit -m "refactor: improve validator error messages"
+git commit -m "test: add tests for formatters module"
+git commit -m "chore: update dependencies to latest versions"
+
+# Bad commits (avoid)
+git commit -m "fix stuff"
+git commit -m "WIP"
+git commit -m "Исправил баг"  # Not in English!
+```
+
+### With Scope
+
+```bash
+git commit -m "feat(bot): add /history command"
+git commit -m "fix(sheets): handle API rate limiting"
+git commit -m "refactor(validators): simplify amount validation"
+git commit -m "test(utils): add edge case tests"
+```
+
+### With Body
+
+```bash
+git commit -m "feat: add multi-currency support
+
+- Add currency field to report schema
+- Implement currency conversion service
+- Update formatters to handle different currencies
+- Add tests for currency conversion"
+```
+
+## .gitignore
+
+Essential files to ignore:
+
+```gitignore
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Database
+*.db
+*.db-journal
+dev.db
+
+# Credentials (CRITICAL!)
+src/services/credentials/*.json
+*.pem
+*.key
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+.cache/
+```
+
+## Branch Strategy
+
+### Main Branches
+
+- `main` - Production-ready code
+- `develop` - Development branch
+
+### Feature Branches
+
+```bash
+# Create feature branch
+git checkout -b feat/expense-categories
+
+# Work on feature
+git add .
+git commit -m "feat: add expense category selection"
+
+# Merge back to develop
+git checkout develop
+git merge feat/expense-categories
+```
+
+### Naming Convention
+
+```
+feat/feature-name
+fix/bug-description
+refactor/component-name
+docs/documentation-update
+test/test-description
+```
+
+## Pre-Commit Checklist
+
+**Always run before committing:**
+
+```bash
+# 1. Format and lint code
+npm run check:fix
+
+# 2. Build project
+npm run build
+
+# 3. Run tests
+npm run test:run
+
+# 4. Check for uncommitted changes
+git status
+```
+
+## Pull Request Guidelines
+
+### PR Title Format
+
+Same as commit messages:
+
+```
+feat: add telegram keyboard navigation
+fix: resolve database connection timeout
+docs: add API documentation
+```
+
+### PR Description Template
+
+```markdown
+## Description
+
+Brief description of changes
+
+## Type of Change
+
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation update
+
+## Checklist
+
+- [ ] Code follows project style guidelines
+- [ ] Self-review completed
+- [ ] Comments added for complex code
+- [ ] Documentation updated
+- [ ] Tests added/updated
+- [ ] All tests passing
+- [ ] No new warnings
+```
+
+## Commit Frequency
+
+- Commit often, push regularly
+- Each commit should be atomic (one logical change)
+- Don't commit broken code
+- Don't commit commented-out code
+- Don't commit debugging statements
+
+## What NOT to Commit
+
+❌ **Never commit:**
+
+- Credentials (API keys, tokens, passwords)
+- Environment files (`.env`)
+- Database files
+- Log files
+- `node_modules/`
+- Build artifacts (`dist/`)
+- IDE configuration (except shared settings)
+- Personal notes or TODO files
+- Sensitive user data
+
+## Sensitive Data Recovery
+
+If you accidentally commit sensitive data:
+
+```bash
+# Remove file from history (use with caution!)
+git filter-branch --force --index-filter \
+  "git rm --cached --ignore-unmatch path/to/sensitive/file" \
+  --prune-empty --tag-name-filter cat -- --all
+
+# Force push (coordinate with team!)
+git push origin --force --all
+
+# Immediately rotate the exposed credentials!
+```
+
+## Language Requirements
+
+- **All commit messages in English**
+- **All branch names in English**
+- **All PR descriptions in English**
+- No Russian or other languages in version control

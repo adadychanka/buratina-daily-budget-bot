@@ -1,0 +1,155 @@
+---
+title: Logging Standards
+description: Structured logging with Winston
+priority: 3
+tags: [logging, winston, monitoring]
+---
+
+# Logging Standards
+
+## Use Winston Exclusively
+
+**Never use `console.log`** in production code - Always use Winston logger.
+
+```typescript
+import { logger } from "../config/logger";
+
+// ✅ Correct
+logger.info("Bot started successfully");
+logger.error("Failed to connect to database:", error);
+logger.debug("Processing report:", reportData);
+
+// ❌ Incorrect
+console.log("Bot started"); // Don't use console.log
+console.error("Error:", error); // Don't use console.error
+```
+
+## Log Levels
+
+Use appropriate log levels for different situations:
+
+- **`error`**: Errors that need immediate attention
+- **`warn`**: Warning conditions that should be investigated
+- **`info`**: General informational messages
+- **`debug`**: Detailed debugging information
+
+```typescript
+// Error - Something went wrong
+logger.error("Failed to save report to database:", error);
+
+// Warning - Something unexpected but not critical
+logger.warn("Rate limit approaching for user:", userId);
+
+// Info - Normal operation
+logger.info("Report created successfully", { reportId, userId });
+
+// Debug - Detailed information for troubleshooting
+logger.debug("Validating report data:", { reportData });
+```
+
+## Structured Logging
+
+Use structured logging (objects) instead of string concatenation.
+
+### ✅ Correct
+
+```typescript
+logger.info("User submitted report", {
+  userId: ctx.from?.id,
+  reportId: report.id,
+  totalSales: report.totalSales,
+  timestamp: new Date().toISOString(),
+});
+
+logger.error("Database connection failed", {
+  error: error.message,
+  code: error.code,
+  retryAttempt: 3,
+});
+```
+
+### ❌ Incorrect
+
+```typescript
+logger.info("User " + userId + " submitted report " + reportId);
+logger.error("DB error: " + error.message + ", code: " + error.code);
+```
+
+## Logger Configuration
+
+Winston logger is configured in `src/config/logger.ts`:
+
+```typescript
+import winston from "winston";
+
+const logger = winston.createLogger({
+  level: config.logLevel,
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: "daily-budget-bot" },
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      ),
+    }),
+  ],
+});
+
+// Add file logging in production
+if (config.nodeEnv === "production") {
+  logger.add(
+    new winston.transports.File({
+      filename: "logs/error.log",
+      level: "error",
+    })
+  );
+  logger.add(
+    new winston.transports.File({
+      filename: "logs/combined.log",
+    })
+  );
+}
+```
+
+## Logging in Error Handlers
+
+Always log errors with context before handling them.
+
+```typescript
+export const startHandler = async (ctx: BotContext): Promise<void> => {
+  try {
+    await ctx.reply("Welcome to Daily Budget Bot!");
+    logger.info("User started bot", { userId: ctx.from?.id });
+  } catch (error) {
+    logger.error("Error in start handler", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      userId: ctx.from?.id,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw error;
+  }
+};
+```
+
+## Security Considerations
+
+**Never log sensitive information:**
+
+- ❌ Bot tokens
+- ❌ API keys
+- ❌ Passwords
+- ❌ Personal user data (unless anonymized)
+- ❌ Credit card numbers
+
+```typescript
+// ✅ Correct - Log without sensitive data
+logger.info("User authenticated", { userId: user.id });
+
+// ❌ Incorrect - Logging sensitive data
+logger.info("User authenticated", { userId: user.id, token: user.token });
+```
