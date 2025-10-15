@@ -32,7 +32,7 @@ This directory contains modular Cursor AI rules for the Daily Budget Bot project
 ### DevOps (Priority 5)
 
 - **08-docker-containerization.mdc** - Docker best practices
-- **09-git-workflow.mdc** - Git commit and workflow standards
+- **09-git-flow-workflow.mdc** - Git Flow branching model and workflow
 
 ## Usage
 
