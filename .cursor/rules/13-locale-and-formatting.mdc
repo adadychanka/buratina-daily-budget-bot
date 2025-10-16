@@ -1,0 +1,467 @@
+---
+title: Locale and Formatting Standards
+description: Currency, date, time, and number formatting standards for Serbian locale
+tags: [locale, formatting, i18n, currency]
+version: 1.0.0
+---
+
+# Locale and Formatting Standards
+
+## Overview
+
+This project uses **Serbian locale (sr-RS)** and **Serbian Dinar (RSD)** currency. All user-facing numbers, dates, times, and currency must be formatted using proper locale settings.
+
+## Project Locale Settings
+
+- **Locale**: `sr-RS` (Serbian - Serbia)
+- **Currency**: `RSD` (Serbian Dinar)
+- **Language**: English (UI text is in English, but formatting follows Serbian conventions)
+
+## Formatters Location
+
+All formatting functions are centralized in: `src/utils/formatters.ts`
+
+## Currency Formatting
+
+### Configuration
+
+```typescript
+// src/utils/formatters.ts
+export function formatAmount(amount: number): string {
+  return new Intl.NumberFormat("sr-RS", {
+    style: "currency",
+    currency: "RSD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+```
+
+### Serbian Number Format
+
+- **Decimal separator**: `,` (comma)
+- **Thousands separator**: `.` (period) or space
+- **Example**: `1.234,56 RSD` or `1 234,56 RSD`
+
+### Usage
+
+```typescript
+// ✅ Good
+import { formatAmount } from "../../utils/formatters";
+await ctx.reply(`Cash: ${formatAmount(150.50)}`);
+// Output: "Cash: 150,50 RSD" or "Cash: 151 RSD"
+
+// ❌ Bad
+await ctx.reply(`Cash: ${amount.toFixed(2)}`);
+// Output: "Cash: 150.50" (wrong format, no currency)
+
+// ❌ Bad
+await ctx.reply(`Cash: ${amount} RSD`);
+// Output: "Cash: 150.5 RSD" (inconsistent decimal places)
+```
+
+### Examples
+
+```typescript
+formatAmount(1234.56)   // → "1.235 RSD" or "1 235 RSD"
+formatAmount(150)       // → "150 RSD"
+formatAmount(0.99)      // → "1 RSD" (rounds to 0 decimal places)
+formatAmount(1000.50)   // → "1.001 RSD" or "1 001 RSD"
+```
+
+## Date Formatting
+
+### Configuration
+
+```typescript
+// src/utils/formatters.ts
+export function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat("sr-RS", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+```
+
+### Serbian Date Format
+
+- **Format**: `DD.MM.YYYY.` (with period at end)
+- **Time**: `HH:mm` (24-hour format)
+- **Example**: `16.10.2025. 14:30`
+
+### Usage
+
+```typescript
+// ✅ Good
+import { formatDate } from "../../utils/formatters";
+const reportDate = formatDate(new Date());
+// Output: "16.10.2025. 14:30"
+
+// ❌ Bad
+const reportDate = new Date().toLocaleDateString();
+// Output: Depends on system locale (inconsistent)
+
+// ❌ Bad
+const reportDate = `${day}/${month}/${year}`;
+// Output: "16/10/2025" (wrong format for Serbian)
+```
+
+## Time Formatting
+
+### Configuration
+
+```typescript
+// src/utils/formatters.ts
+export function formatTime(date: Date): string {
+  return new Intl.DateTimeFormat("sr-RS", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+}
+```
+
+### Usage
+
+```typescript
+// ✅ Good
+const timestamp = formatTime(new Date());
+// Output: "14:30:45"
+
+// ❌ Bad
+const timestamp = new Date().toLocaleTimeString();
+// Output: Depends on system locale
+```
+
+## Report History Formatting
+
+```typescript
+// src/utils/formatters.ts
+export function formatReportHistory(reports: ReportData[]): string {
+  if (reports.length === 0) {
+    return "📊 No reports yet";
+  }
+
+  const reportsText = reports
+    .map((report, index) => {
+      const date = new Date().toLocaleDateString("sr-RS");
+      return `${index + 1}. ${date} - ${formatAmount(report.totalSales)}`;
+    })
+    .join("\n");
+
+  return `📊 Recent Reports:\n\n${reportsText}`;
+}
+```
+
+### Output Example
+
+```
+📊 Recent Reports:
+
+1. 16.10.2025. - 15.234 RSD
+2. 15.10.2025. - 12.456 RSD
+3. 14.10.2025. - 18.900 RSD
+```
+
+## Best Practices
+
+### ✅ Do
+
+1. **Always Use Formatters for User-Facing Values**
+   ```typescript
+   // ✅ Good
+   const summary = `💰 Cash: ${formatAmount(cashAmount)}`;
+   
+   // ❌ Bad
+   const summary = `💰 Cash: ${cashAmount}`;
+   const summary = `💰 Cash: ${cashAmount.toFixed(2)} RSD`;
+   ```
+
+2. **Import Formatters Where Needed**
+   ```typescript
+   import { formatAmount, formatDate } from "../../utils/formatters";
+   ```
+
+3. **Use Consistent Locale Across All Formatters**
+   ```typescript
+   // ✅ All use "sr-RS"
+   formatAmount()  // sr-RS
+   formatDate()    // sr-RS
+   formatTime()    // sr-RS
+   ```
+
+4. **Store Raw Numbers, Format on Display**
+   ```typescript
+   // ✅ Good
+   ctx.session.reportData.cashAmount = 150.50;  // Store as number
+   await ctx.reply(`Cash: ${formatAmount(150.50)}`);  // Format for display
+   
+   // ❌ Bad
+   ctx.session.reportData.cashAmount = "150,50 RSD";  // Don't store formatted
+   ```
+
+5. **Use Formatters in Summary Messages**
+   ```typescript
+   const summary = `${MESSAGES.REPORT_SUMMARY}
+
+💰 Cash: ${formatAmount(cashAmount)}
+💳 White Cash: ${formatAmount(whiteCashAmount)}
+🖤 Black Cash: ${formatAmount(blackCashAmount)}
+
+Total: ${formatAmount(totalAmount)}`;
+   ```
+
+### ❌ Don't
+
+1. **Don't Use Default Number Formatting**
+   ```typescript
+   // ❌ Bad
+   `Amount: ${amount}`
+   `Amount: ${amount.toFixed(2)}`
+   
+   // ✅ Good
+   `Amount: ${formatAmount(amount)}`
+   ```
+
+2. **Don't Hardcode Currency Symbol**
+   ```typescript
+   // ❌ Bad
+   `Amount: ${amount} RSD`
+   `Amount: ${amount} дин.`
+   
+   // ✅ Good
+   formatAmount(amount)  // Includes currency automatically
+   ```
+
+3. **Don't Mix Locales**
+   ```typescript
+   // ❌ Bad
+   new Intl.NumberFormat("en-US", { currency: "RSD" })
+   new Intl.DateTimeFormat("ru-RU")
+   
+   // ✅ Good
+   new Intl.NumberFormat("sr-RS", { currency: "RSD" })
+   new Intl.DateTimeFormat("sr-RS")
+   ```
+
+4. **Don't Use String Concatenation for Numbers**
+   ```typescript
+   // ❌ Bad
+   const total = amount + " RSD";
+   
+   // ✅ Good
+   const total = formatAmount(amount);
+   ```
+
+## Google Sheets Export
+
+When exporting to Google Sheets, use raw numbers (not formatted strings):
+
+```typescript
+// src/utils/formatters.ts
+export function formatReportForSheets(reportData: ReportData): string[] {
+  return [
+    new Date().toISOString().split("T")[0],  // Date as YYYY-MM-DD
+    reportData.totalSales.toString(),         // Raw number as string
+    reportData.cashAmount.toString(),         // Raw number as string
+    // ... more fields as raw numbers
+  ];
+}
+```
+
+**Why?** Google Sheets can format numbers itself. Storing raw numbers allows calculations and sorting.
+
+## Interim Confirmations Pattern
+
+When showing confirmations after each field, use formatters:
+
+```typescript
+const interim = `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.amount ?? 0)}
+
+${PROMPTS.NEXT_FIELD}`;
+
+await ctx.reply(interim);
+```
+
+### Output Example
+
+```
+✅ Amount saved: 150,50 RSD
+
+Enter White Cash amount:
+```
+
+## Summary Display Pattern
+
+```typescript
+const summary = `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(whiteCashAmount)}
+
+${MESSAGES.REPORT_SUMMARY}
+
+💰 Cash: ${formatAmount(cashAmount)}
+💳 White Cash: ${formatAmount(whiteCashAmount)}
+
+${MESSAGES.REPORT_COMPLETED}`;
+```
+
+### Output Example
+
+```
+✅ Amount saved: 75,25 RSD
+
+📊 Report Summary:
+
+💰 Cash: 150,50 RSD
+💳 White Cash: 75,25 RSD
+
+Report completed! (More fields will be added later)
+```
+
+## Why Serbian Locale with English UI?
+
+**Business Context**: The bot is for a Serbian bar (Buratina Bar), so:
+- Currency must be RSD (legal requirement)
+- Number formatting must follow Serbian conventions (user expectation)
+- UI is in English (team preference for clarity in code)
+
+This is a common pattern in international applications.
+
+## Testing Formatters
+
+```typescript
+// tests/formatters.test.ts
+import { describe, it, expect } from "vitest";
+import { formatAmount, formatDate } from "../src/utils/formatters";
+
+describe("formatAmount", () => {
+  it("should format amount in RSD", () => {
+    const result = formatAmount(1234.56);
+    expect(result).toContain("RSD");
+  });
+
+  it("should use Serbian number format", () => {
+    const result = formatAmount(1234.56);
+    // Serbian uses comma for decimal, period/space for thousands
+    expect(result).toMatch(/1[.\s]?\d{3}/);
+  });
+});
+```
+
+## Common Formatting Scenarios
+
+### Scenario 1: Field Confirmation
+
+```typescript
+const message = `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(value)}
+
+${PROMPTS.NEXT_FIELD}`;
+```
+
+### Scenario 2: Error Message with Value
+
+```typescript
+const message = `❌ ${validation.error}
+
+Received: ${formatAmount(invalidValue)}
+
+${PROMPTS.RETRY}`;
+```
+
+### Scenario 3: Final Summary
+
+```typescript
+const summary = `${MESSAGES.REPORT_SUMMARY}
+
+💰 Cash: ${formatAmount(cash)}
+💳 White Cash: ${formatAmount(whiteCash)}
+🖤 Black Cash: ${formatAmount(blackCash)}
+💳 Card Sales: ${formatAmount(cardSales)}
+
+📈 Total Sales: ${formatAmount(totalSales)}`;
+```
+
+### Scenario 4: History Entry
+
+```typescript
+const historyItem = `${index + 1}. ${formatDate(report.date)} - ${formatAmount(report.totalSales)}`;
+```
+
+## Locale Constants
+
+While not in constants.ts, locale settings are configured in formatters.ts:
+
+```typescript
+const LOCALE = "sr-RS";
+const CURRENCY = "RSD";
+
+export function formatAmount(amount: number): string {
+  return new Intl.NumberFormat(LOCALE, {
+    style: "currency",
+    currency: CURRENCY,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+```
+
+## Future Considerations
+
+### Multi-Currency Support
+
+If multi-currency support is needed in the future:
+
+```typescript
+export function formatAmount(
+  amount: number,
+  currency: string = "RSD",
+  locale: string = "sr-RS"
+): string {
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+```
+
+### Multi-Language Support
+
+If UI needs multiple languages:
+
+```typescript
+const LOCALES = {
+  en: "en-US",
+  sr: "sr-RS",
+  ru: "ru-RU",
+};
+
+export function formatAmount(
+  amount: number,
+  userLocale: string = "sr-RS"
+): string {
+  return new Intl.NumberFormat(userLocale, {
+    style: "currency",
+    currency: "RSD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+```
+
+## Checklist
+
+Before committing code with numeric/date display:
+
+- [ ] All amounts use `formatAmount()`
+- [ ] All dates use `formatDate()`
+- [ ] All times use `formatTime()`
+- [ ] No hardcoded currency symbols
+- [ ] No `.toFixed()` for user-facing numbers
+- [ ] Raw numbers stored in database/session
+- [ ] Formatted values only for display
+- [ ] Locale is `sr-RS` consistently
+- [ ] Currency is `RSD` consistently

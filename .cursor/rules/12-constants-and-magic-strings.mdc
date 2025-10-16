@@ -1,0 +1,427 @@
+---
+title: Constants and Magic Strings Avoidance
+description: Standards for using constants instead of hardcoded strings
+tags: [constants, best-practices, maintainability]
+version: 1.0.0
+---
+
+# Constants and Magic Strings Avoidance
+
+## Overview
+
+This project **strictly avoids magic strings** by centralizing all constants in `src/utils/constants.ts`. This improves maintainability, reduces typos, enables IDE autocomplete, and makes the codebase easier to refactor.
+
+## Constants Location
+
+All constants are defined in: `src/utils/constants.ts`
+
+## Constant Categories
+
+### 1. Bot Commands
+
+```typescript
+// src/utils/constants.ts
+export const BOT_COMMANDS = {
+  START: "/start",
+  HELP: "/help",
+  REPORT: "/report",
+  HISTORY: "/history",
+} as const;
+```
+
+**Usage:**
+```typescript
+// ✅ Good
+this.bot.command(BOT_COMMANDS.REPORT.slice(1), handler);
+
+// ❌ Bad
+this.bot.command("report", handler);
+```
+
+### 2. Scene IDs
+
+```typescript
+export const SCENES = {
+  REPORT: "report",
+  SETTINGS: "settings",
+} as const;
+```
+
+**Usage:**
+```typescript
+// ✅ Good
+ctx.scene.enter(SCENES.REPORT);
+const scene = new Scenes.BaseScene<BotContext>(SCENES.REPORT);
+
+// ❌ Bad
+ctx.scene.enter("report");
+const scene = new Scenes.BaseScene<BotContext>("report");
+```
+
+### 3. Scene Steps
+
+```typescript
+export const REPORT_STEPS = {
+  CASH_AMOUNT: "cashAmount",
+  WHITE_CASH_AMOUNT: "whiteCashAmount",
+  BLACK_CASH_AMOUNT: "blackCashAmount",
+  BLACK_CASH_LOCATION: "blackCashLocation",
+  CARD_SALES_AMOUNT: "cardSalesAmount",
+  EXPENSES: "expenses",
+  CASHBOX_AMOUNT: "cashboxAmount",
+  NOTES: "notes",
+  CONFIRMATION: "confirmation",
+} as const;
+```
+
+**Usage:**
+```typescript
+// ✅ Good
+ctx.session.step = REPORT_STEPS.CASH_AMOUNT;
+if (currentStep === REPORT_STEPS.WHITE_CASH_AMOUNT) { ... }
+
+// ❌ Bad
+ctx.session.step = "cash_amount";
+if (currentStep === "white_cash_amount") { ... }
+```
+
+### 4. User-Facing Messages
+
+```typescript
+export const MESSAGES = {
+  WELCOME: "Welcome to Daily Budget Bot!",
+  ERROR: "An error occurred. Please try again later.",
+  INVALID_INPUT: "Invalid input. Please try again.",
+  SUCCESS: "Operation completed successfully!",
+  CANCELLED: "Operation cancelled.",
+  REPORT_START: "📊 Let's create a new report!",
+  REPORT_CANCELLED: "❌ Report cancelled.",
+  REPORT_ERROR: "An error occurred. Please try again or use /cancel.",
+  AMOUNT_SAVED: "✅ Amount saved",
+  REPORT_SUMMARY: "📊 Report Summary:",
+  REPORT_COMPLETED: "Report completed! (More fields will be added later)",
+} as const;
+```
+
+**Usage:**
+```typescript
+// ✅ Good
+await ctx.reply(MESSAGES.REPORT_START);
+await ctx.reply(MESSAGES.ERROR);
+
+// ❌ Bad
+await ctx.reply("📊 Let's create a new report!");
+await ctx.reply("An error occurred. Please try again later.");
+```
+
+### 5. Prompts (User Input Requests)
+
+```typescript
+export const PROMPTS = {
+  CASH_AMOUNT: "Enter Cash amount:",
+  WHITE_CASH_AMOUNT: "Enter White Cash amount:",
+  BLACK_CASH_AMOUNT: "Enter Black Cash amount:",
+  BLACK_CASH_LOCATION: "Where was Black Cash saved (e.g., 'Friday', 'Monday')?",
+  CARD_SALES_AMOUNT: "Enter Card sales amount:",
+  CASHBOX_AMOUNT: "Enter total amount in cashbox at end of shift:",
+  NOTES: "Any additional notes?",
+  INVALID_AMOUNT: "Please enter a valid amount:",
+} as const;
+```
+
+**Usage:**
+```typescript
+// ✅ Good
+await ctx.reply(PROMPTS.CASH_AMOUNT);
+await ctx.reply(`❌ ${validation.error}\n\n${PROMPTS.INVALID_AMOUNT}`);
+
+// ❌ Bad
+await ctx.reply("Enter Cash amount:");
+await ctx.reply(`❌ ${validation.error}\n\nPlease enter a valid amount:`);
+```
+
+### 6. Validation Limits
+
+```typescript
+export const VALIDATION = {
+  MIN_AMOUNT: 0,
+  MAX_AMOUNT: 999999999,
+  MIN_TEXT_LENGTH: 1,
+  MAX_TEXT_LENGTH: 1000,
+  MAX_NOTES_LENGTH: 500,
+} as const;
+```
+
+**Usage:**
+```typescript
+// ✅ Good
+if (amount < VALIDATION.MIN_AMOUNT || amount > VALIDATION.MAX_AMOUNT) {
+  return { isValid: false, error: "Amount out of range" };
+}
+
+// ❌ Bad
+if (amount < 0 || amount > 999999999) {
+  return { isValid: false, error: "Amount out of range" };
+}
+```
+
+### 7. Database Constants
+
+```typescript
+export const DATABASE = {
+  TABLES: {
+    USERS: "users",
+    REPORTS: "reports",
+  },
+  LIMITS: {
+    MAX_REPORTS_PER_USER: 1000,
+    MAX_HISTORY_DISPLAY: 10,
+  },
+} as const;
+```
+
+### 8. Google Sheets Constants
+
+```typescript
+export const GOOGLE_SHEETS = {
+  RANGE: "Sheet1!A:J",
+  COLUMNS: {
+    DATE: 0,
+    TOTAL_SALES: 1,
+    CASH_AMOUNT: 2,
+    WHITE_CASH: 3,
+    BLACK_CASH: 4,
+    BLACK_CASH_LOCATION: 5,
+    CARD_SALES: 6,
+    TOTAL_EXPENSES: 7,
+    EXPENSES_DETAILS: 8,
+    CASHBOX_AMOUNT: 9,
+    NOTES: 10,
+  },
+} as const;
+```
+
+## Best Practices
+
+### ✅ Do
+
+1. **Import Constants at Top of File**
+   ```typescript
+   import {
+     SCENES,
+     REPORT_STEPS,
+     MESSAGES,
+     PROMPTS,
+   } from "../../utils/constants";
+   ```
+
+2. **Use Constants for All String Literals**
+   ```typescript
+   // ✅ Good
+   await ctx.reply(
+     `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(value)}\n\n${PROMPTS.NEXT_FIELD}`
+   );
+   
+   // ❌ Bad
+   await ctx.reply(
+     `✅ Amount saved: ${formatAmount(value)}\n\nEnter next field:`
+   );
+   ```
+
+3. **Add New Constants Before Using Them**
+   ```typescript
+   // 1. Add to constants.ts
+   export const PROMPTS = {
+     // ... existing
+     NEW_FIELD: "Enter new field:",
+   } as const;
+   
+   // 2. Then use in code
+   await ctx.reply(PROMPTS.NEW_FIELD);
+   ```
+
+4. **Group Related Constants**
+   ```typescript
+   // ✅ Good - grouped by category
+   export const MESSAGES = { ... };
+   export const PROMPTS = { ... };
+   
+   // ❌ Bad - all mixed together
+   export const STRINGS = {
+     ERROR: "...",
+     CASH_PROMPT: "...",
+     CANCEL: "...",
+     WHITE_CASH_PROMPT: "...",
+   };
+   ```
+
+5. **Use TypeScript const assertions**
+   ```typescript
+   // ✅ Good - readonly, type-safe
+   export const MESSAGES = {
+     ERROR: "An error occurred.",
+   } as const;
+   
+   // ❌ Bad - mutable
+   export const MESSAGES = {
+     ERROR: "An error occurred.",
+   };
+   ```
+
+### ❌ Don't
+
+1. **Don't Duplicate String Values**
+   ```typescript
+   // ❌ Bad
+   await ctx.reply("An error occurred. Please try again later.");
+   // ... elsewhere ...
+   await ctx.reply("An error occurred. Please try again later.");
+   
+   // ✅ Good
+   await ctx.reply(MESSAGES.ERROR);
+   // ... elsewhere ...
+   await ctx.reply(MESSAGES.ERROR);
+   ```
+
+2. **Don't Use Magic Numbers**
+   ```typescript
+   // ❌ Bad
+   if (reports.length > 10) { ... }
+   
+   // ✅ Good
+   if (reports.length > DATABASE.LIMITS.MAX_HISTORY_DISPLAY) { ... }
+   ```
+
+3. **Don't Build Strings from Multiple Magic Values**
+   ```typescript
+   // ❌ Bad
+   const message = "Cash: " + amount + "\nWhite Cash: " + whiteCash;
+   
+   // ✅ Good
+   const message = `${MESSAGES.REPORT_SUMMARY}\n\n💰 Cash: ${formatAmount(amount)}\n💳 White Cash: ${formatAmount(whiteCash)}`;
+   ```
+
+4. **Don't Skip Constants for "Simple" Strings**
+   ```typescript
+   // ❌ Bad (even though it's "simple")
+   await ctx.reply("OK");
+   
+   // ✅ Good
+   await ctx.reply(MESSAGES.OK);
+   ```
+
+## Naming Conventions
+
+### Constant Groups
+
+- **UPPERCASE_SNAKE**: For constant group names
+  ```typescript
+  BOT_COMMANDS, REPORT_STEPS, MESSAGES, PROMPTS
+  ```
+
+### Constant Keys
+
+- **UPPERCASE_SNAKE**: For constant keys
+  ```typescript
+  CASH_AMOUNT, WHITE_CASH_AMOUNT, REPORT_START
+  ```
+
+### Constant Values (Step Names)
+
+- **camelCase**: For step identifiers (stored in session)
+  ```typescript
+  REPORT_STEPS = {
+    CASH_AMOUNT: "cashAmount",  // camelCase value
+  }
+  ```
+
+- **String as-is**: For user-facing messages
+  ```typescript
+  MESSAGES = {
+    ERROR: "An error occurred.",  // Natural language
+  }
+  ```
+
+## Internationalization Ready
+
+This pattern makes i18n implementation easier:
+
+```typescript
+// Future i18n structure
+export const MESSAGES = {
+  ERROR: i18n.t("errors.generic"),
+  REPORT_START: i18n.t("report.start"),
+} as const;
+```
+
+## Benefits
+
+1. **✅ Type Safety** - IDE autocomplete and type checking
+2. **✅ No Typos** - Compiler catches misspelled constants
+3. **✅ Easy Refactoring** - Change in one place affects everywhere
+4. **✅ Searchability** - Easy to find all usages
+5. **✅ Consistency** - Same message shows exactly the same everywhere
+6. **✅ Documentation** - Constants file serves as message catalog
+7. **✅ i18n Ready** - Easy to add translations later
+
+## Common Mistakes
+
+### Mistake 1: Inline String in Template
+
+```typescript
+// ❌ Bad
+await ctx.reply(`${MESSAGES.AMOUNT_SAVED}: ${value}\n\nEnter next amount:`);
+
+// ✅ Good
+await ctx.reply(`${MESSAGES.AMOUNT_SAVED}: ${value}\n\n${PROMPTS.NEXT_AMOUNT}`);
+```
+
+### Mistake 2: Partial Constants Usage
+
+```typescript
+// ❌ Bad - mixing constants and strings
+ctx.session.step = REPORT_STEPS.CASH_AMOUNT;
+await ctx.reply("Enter cash amount:");
+
+// ✅ Good - all constants
+ctx.session.step = REPORT_STEPS.CASH_AMOUNT;
+await ctx.reply(PROMPTS.CASH_AMOUNT);
+```
+
+### Mistake 3: Wrong Constant Category
+
+```typescript
+// ❌ Bad - putting prompt in MESSAGES
+export const MESSAGES = {
+  CASH_PROMPT: "Enter Cash amount:",
+};
+
+// ✅ Good - use PROMPTS for input requests
+export const PROMPTS = {
+  CASH_AMOUNT: "Enter Cash amount:",
+};
+```
+
+## Checklist
+
+Before committing code, verify:
+
+- [ ] No hardcoded strings in bot messages
+- [ ] No hardcoded scene IDs
+- [ ] No hardcoded step names
+- [ ] No magic numbers for limits/thresholds
+- [ ] All new messages added to constants.ts
+- [ ] Constants imported at top of file
+- [ ] Using correct constant category (MESSAGES vs PROMPTS vs STEPS)
+
+## Exception: Temporary Debug Strings
+
+Temporary debug/log messages can use inline strings:
+
+```typescript
+// ✅ OK for temporary debugging
+logger.debug(`Debug: currentStep=${currentStep}, data=${JSON.stringify(data)}`);
+
+// ❌ Not OK for user-facing or permanent code
+await ctx.reply("Debug mode active");
+```
