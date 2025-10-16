@@ -40,6 +40,24 @@ export const MESSAGES = {
   INVALID_INPUT: 'Invalid input. Please try again.',
   SUCCESS: 'Operation completed successfully!',
   CANCELLED: 'Operation cancelled.',
+  REPORT_START: "📊 Let's create a new report!",
+  REPORT_CANCELLED: '❌ Report cancelled.',
+  REPORT_ERROR: 'An error occurred. Please try again or use /cancel.',
+  AMOUNT_SAVED: '✅ Amount saved',
+  REPORT_SUMMARY: '📊 Report Summary:',
+  REPORT_COMPLETED: 'Report completed! (More fields will be added later)',
+} as const;
+
+// Report field prompts
+export const PROMPTS = {
+  CASH_AMOUNT: 'Enter Cash amount:',
+  WHITE_CASH_AMOUNT: 'Enter White Cash amount:',
+  BLACK_CASH_AMOUNT: 'Enter Black Cash amount:',
+  BLACK_CASH_LOCATION: "Where was Black Cash saved (e.g., 'Friday', 'Monday')?",
+  CARD_SALES_AMOUNT: 'Enter Card sales amount:',
+  CASHBOX_AMOUNT: 'Enter total amount in cashbox at end of shift:',
+  NOTES: 'Any additional notes?',
+  INVALID_AMOUNT: 'Please enter a valid amount:',
 } as const;
 
 // Google Sheets constants

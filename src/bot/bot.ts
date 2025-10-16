@@ -2,6 +2,7 @@ import { Scenes, session, Telegraf } from "telegraf";
 import { logger } from "../config/logger";
 import { config } from "../config/settings";
 import type { BotContext } from "../types/bot";
+import { SCENES, MESSAGES } from "../utils/constants";
 import { helpHandler } from "./handlers/help";
 import { historyHandler } from "./handlers/history";
 import { startHandler } from "./handlers/start";
@@ -46,12 +47,12 @@ export class Bot {
     this.bot.command("history", historyHandler);
 
     // Report command - enter the report scene
-    this.bot.command("report", (ctx) => ctx.scene.enter("report"));
+    this.bot.command("report", (ctx) => ctx.scene.enter(SCENES.REPORT));
 
     // Error handling
     this.bot.catch((err, ctx) => {
       logger.error("Bot error:", err);
-      ctx.reply("An error occurred. Please try again later.");
+      ctx.reply(MESSAGES.ERROR);
     });
   }
 
