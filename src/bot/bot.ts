@@ -1,28 +1,39 @@
-import { session, Telegraf } from 'telegraf';
-import { logger } from '../config/logger';
-import { config } from '../config/settings';
-import type { BotContext } from '../types/bot';
-import { helpHandler } from './handlers/help';
-import { historyHandler } from './handlers/history';
-import { startHandler } from './handlers/start';
+import { Scenes, session, Telegraf } from "telegraf";
+import { logger } from "../config/logger";
+import { config } from "../config/settings";
+import type { BotContext } from "../types/bot";
+import { helpHandler } from "./handlers/help";
+import { historyHandler } from "./handlers/history";
+import { startHandler } from "./handlers/start";
+import { reportScene } from "./scenes/report";
 
 export class Bot {
   private bot: Telegraf<BotContext>;
+  private stage;
 
   constructor() {
     this.bot = new Telegraf<BotContext>(config.botToken);
+
+    // Create stage with scenes
+    this.stage = new Scenes.Stage<BotContext>([reportScene]);
+
     this.setupMiddleware();
     this.setupHandlers();
   }
 
   private setupMiddleware() {
-    // Session middleware
+    // Session middleware (must be before stage)
     this.bot.use(session());
+
+    // Stage middleware
+    this.bot.use(this.stage.middleware());
 
     // Logging middleware
     this.bot.use((ctx, next) => {
       const messageText =
-        ctx.message && 'text' in ctx.message ? ctx.message.text : 'non-text message';
+        ctx.message && "text" in ctx.message
+          ? ctx.message.text
+          : "non-text message";
       logger.info(`User ${ctx.from?.id} sent message: ${messageText}`);
       return next();
     });
@@ -32,28 +43,24 @@ export class Bot {
     // Command handlers
     this.bot.start(startHandler);
     this.bot.help(helpHandler);
-    this.bot.command('history', historyHandler);
+    this.bot.command("history", historyHandler);
 
-    // Simple report handler (temporary)
-    this.bot.command('report', (ctx) => {
-      ctx.reply(
-        'Report creation feature will be added soon. Please use /help for more information.'
-      );
-    });
+    // Report command - enter the report scene
+    this.bot.command("report", (ctx) => ctx.scene.enter("report"));
 
     // Error handling
     this.bot.catch((err, ctx) => {
-      logger.error('Bot error:', err);
-      ctx.reply('An error occurred. Please try again later.');
+      logger.error("Bot error:", err);
+      ctx.reply("An error occurred. Please try again later.");
     });
   }
 
   async start() {
     try {
       await this.bot.launch();
-      logger.info('Bot launched successfully');
+      logger.info("Bot launched successfully");
     } catch (error) {
-      logger.error('Failed to launch bot:', error);
+      logger.error("Failed to launch bot:", error);
       throw error;
     }
   }
@@ -61,9 +68,9 @@ export class Bot {
   async stop() {
     try {
       this.bot.stop();
-      logger.info('Bot stopped');
+      logger.info("Bot stopped");
     } catch (error) {
-      logger.error('Failed to stop bot:', error);
+      logger.error("Failed to stop bot:", error);
       throw error;
     }
   }
