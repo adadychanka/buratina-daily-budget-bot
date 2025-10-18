@@ -1,0 +1,566 @@
+---
+title: Inline Keyboard Patterns
+description: Best practices for implementing Telegram inline keyboards with Telegraf
+priority: 3
+tags: [telegraf, inline-keyboard, callbacks, buttons, ux]
+---
+
+# Inline Keyboard Patterns
+
+## Overview
+
+Inline keyboards provide a better UX than text-only interactions. This rule defines patterns for creating, organizing, and handling inline keyboards in Telegraf bots.
+
+## Callback Data Constants
+
+Always use constants for callback data strings.
+
+### ✅ Correct: Centralized Constants
+
+```typescript
+// utils/constants.ts
+export const CALLBACKS = {
+  // Grouped by feature
+  WEEKDAY_MONDAY: 'weekday_monday',
+  WEEKDAY_TUESDAY: 'weekday_tuesday',
+  WEEKDAY_WEDNESDAY: 'weekday_wednesday',
+  
+  EXPENSE_ADD: 'expense_add',
+  EXPENSE_SKIP: 'expense_skip',
+  EXPENSE_DONE: 'expense_done',
+  
+  CONFIRM_REPORT: 'confirm_report',
+  EDIT_REPORT: 'edit_report',
+  CANCEL_REPORT: 'cancel_report',
+} as const;
+
+export const BUTTONS = {
+  MONDAY: 'Monday',
+  TUESDAY: 'Tuesday',
+  WEDNESDAY: 'Wednesday',
+  
+  ADD_EXPENSE: '➕ Add Expense',
+  SKIP_EXPENSES: '⏭️ Skip Expenses',
+  DONE_EXPENSES: '✅ Done',
+  
+  CONFIRM: '✅ Confirm',
+  EDIT: '✏️ Edit',
+  CANCEL: '❌ Cancel',
+} as const;
+```
+
+### ❌ Incorrect: Magic Strings
+
+```typescript
+// Scattered throughout code
+await ctx.reply('Select:', Markup.inlineKeyboard([
+  [Markup.button.callback('Monday', 'mon')],  // Magic strings!
+  [Markup.button.callback('Tuesday', 'tue')], // Not searchable
+]));
+
+// In handler
+if (callbackData === 'mon') { // Typo-prone, no autocomplete
+  // ...
+}
+```
+
+## Keyboard Builder Functions
+
+Create reusable keyboard builder functions in helpers.
+
+### ✅ Correct: Reusable Builders
+
+```typescript
+// helpers/messageHelpers.ts
+import { Markup } from 'telegraf';
+import { BUTTONS, CALLBACKS } from '../../../../utils/constants';
+
+export function getWeekdayKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback(BUTTONS.MONDAY, CALLBACKS.WEEKDAY_MONDAY),
+      Markup.button.callback(BUTTONS.TUESDAY, CALLBACKS.WEEKDAY_TUESDAY),
+    ],
+    [
+      Markup.button.callback(BUTTONS.WEDNESDAY, CALLBACKS.WEEKDAY_WEDNESDAY),
+      Markup.button.callback(BUTTONS.THURSDAY, CALLBACKS.WEEKDAY_THURSDAY),
+    ],
+    [
+      Markup.button.callback(BUTTONS.FRIDAY, CALLBACKS.WEEKDAY_FRIDAY),
+      Markup.button.callback(BUTTONS.SATURDAY, CALLBACKS.WEEKDAY_SATURDAY),
+    ],
+    [
+      Markup.button.callback(BUTTONS.SUNDAY, CALLBACKS.WEEKDAY_SUNDAY),
+    ],
+  ]);
+}
+
+export function getConfirmationKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback(BUTTONS.CONFIRM, CALLBACKS.CONFIRM_REPORT),
+      Markup.button.callback(BUTTONS.EDIT, CALLBACKS.EDIT_REPORT),
+    ],
+    [
+      Markup.button.callback(BUTTONS.CANCEL, CALLBACKS.CANCEL_REPORT),
+    ],
+  ]);
+}
+
+export function getBinaryChoiceKeyboard(
+  yesText: string,
+  yesCallback: string,
+  noText: string,
+  noCallback: string
+) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback(yesText, yesCallback),
+      Markup.button.callback(noText, noCallback),
+    ],
+  ]);
+}
+```
+
+### ❌ Incorrect: Inline Creation
+
+```typescript
+// handlers/textHandlers.ts
+await ctx.reply('Select day:', Markup.inlineKeyboard([
+  [Markup.button.callback('Mon', 'mon'), Markup.button.callback('Tue', 'tue')],
+  [Markup.button.callback('Wed', 'wed'), Markup.button.callback('Thu', 'thu')],
+]));
+
+// handlers/callbackHandlers.ts
+await ctx.reply('Confirm?', Markup.inlineKeyboard([
+  [Markup.button.callback('Yes', 'yes'), Markup.button.callback('No', 'no')],
+]));
+
+// Duplicated, not reusable, magic strings
+```
+
+## Button Layout Guidelines
+
+### Optimal Button Count per Row
+
+- **1 button**: Full-width action (Submit, Cancel)
+- **2 buttons**: Binary choice (Yes/No, Confirm/Cancel)
+- **3 buttons**: Related actions (Add/Edit/Delete)
+- **Max 8 buttons per row** (Telegram limit, but use fewer for mobile UX)
+
+### ✅ Correct: Well-Organized Layout
+
+```typescript
+// Good: 2 primary actions per row
+export function getExpenseKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback(BUTTONS.ADD_EXPENSE, CALLBACKS.EXPENSE_ADD),
+      Markup.button.callback(BUTTONS.SKIP_EXPENSES, CALLBACKS.EXPENSE_SKIP),
+    ],
+  ]);
+}
+
+// Good: Grouped by weekday pairs
+export function getWeekdayKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback(BUTTONS.MONDAY, CALLBACKS.WEEKDAY_MONDAY),
+      Markup.button.callback(BUTTONS.TUESDAY, CALLBACKS.WEEKDAY_TUESDAY),
+    ],
+    [
+      Markup.button.callback(BUTTONS.WEDNESDAY, CALLBACKS.WEEKDAY_WEDNESDAY),
+      Markup.button.callback(BUTTONS.THURSDAY, CALLBACKS.WEEKDAY_THURSDAY),
+    ],
+    [
+      Markup.button.callback(BUTTONS.FRIDAY, CALLBACKS.WEEKDAY_FRIDAY),
+      Markup.button.callback(BUTTONS.SATURDAY, CALLBACKS.WEEKDAY_SATURDAY),
+    ],
+    [
+      Markup.button.callback(BUTTONS.SUNDAY, CALLBACKS.WEEKDAY_SUNDAY),
+    ],
+  ]);
+}
+
+// Good: Primary action on top, cancel below
+export function getConfirmationKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback(BUTTONS.CONFIRM, CALLBACKS.CONFIRM_REPORT),
+      Markup.button.callback(BUTTONS.EDIT, CALLBACKS.EDIT_REPORT),
+    ],
+    [
+      Markup.button.callback(BUTTONS.CANCEL, CALLBACKS.CANCEL_REPORT),
+    ],
+  ]);
+}
+```
+
+### ❌ Incorrect: Poor Layout
+
+```typescript
+// Bad: Too many buttons in one row
+Markup.inlineKeyboard([
+  [
+    Markup.button.callback('Mon', 'mon'),
+    Markup.button.callback('Tue', 'tue'),
+    Markup.button.callback('Wed', 'wed'),
+    Markup.button.callback('Thu', 'thu'),
+    Markup.button.callback('Fri', 'fri'),
+    Markup.button.callback('Sat', 'sat'),
+    Markup.button.callback('Sun', 'sun'),
+  ],
+]);
+
+// Bad: Unorganized, no visual hierarchy
+Markup.inlineKeyboard([
+  [Markup.button.callback('Cancel', 'cancel')],
+  [Markup.button.callback('Confirm', 'confirm')],
+  [Markup.button.callback('Edit', 'edit')],
+  [Markup.button.callback('Skip', 'skip')],
+]);
+```
+
+## Callback Handler Pattern
+
+### ✅ Correct: Centralized Dispatcher
+
+```typescript
+// handlers/callbackHandlers.ts
+import type { BotContext } from '../../../../types/bot';
+import { CALLBACKS } from '../../../../utils/constants';
+import { logger } from '../../../../config/logger';
+
+export async function handleCallbackQuery(ctx: BotContext) {
+  const callbackData =
+    ctx.callbackQuery && 'data' in ctx.callbackQuery
+      ? ctx.callbackQuery.data
+      : null;
+
+  if (!callbackData) {
+    await ctx.answerCbQuery('Invalid callback');
+    return;
+  }
+
+  try {
+    // Route by prefix for grouped callbacks
+    if (callbackData.startsWith('weekday_')) {
+      await handleWeekdaySelection(ctx, callbackData);
+      return;
+    }
+
+    if (callbackData.startsWith('category_')) {
+      await handleCategorySelection(ctx, callbackData);
+      return;
+    }
+
+    // Route by exact match
+    switch (callbackData) {
+      case CALLBACKS.EXPENSE_ADD:
+        await handleExpenseAdd(ctx);
+        break;
+      case CALLBACKS.EXPENSE_SKIP:
+        await handleExpenseSkip(ctx);
+        break;
+      case CALLBACKS.EXPENSE_DONE:
+        await handleExpenseDone(ctx);
+        break;
+      case CALLBACKS.CONFIRM_REPORT:
+        await handleConfirmReport(ctx);
+        break;
+      case CALLBACKS.EDIT_REPORT:
+        await handleEditReport(ctx);
+        break;
+      case CALLBACKS.CANCEL_REPORT:
+        await handleCancelReport(ctx);
+        break;
+      default:
+        await ctx.answerCbQuery('Unknown action');
+        logger.warn(`Unknown callback data: ${callbackData}`);
+    }
+  } catch (error) {
+    logger.error('Error handling callback query:', error);
+    await ctx.answerCbQuery('An error occurred');
+    await ctx.reply(MESSAGES.ERROR);
+  }
+}
+```
+
+### ❌ Incorrect: No Dispatcher
+
+```typescript
+// In main scene file - BAD!
+myScene.on('callback_query', async (ctx) => {
+  const data = ctx.callbackQuery.data;
+  
+  if (data === 'add') {
+    // 50 lines of inline logic
+  } else if (data === 'skip') {
+    // 40 more lines
+  } else if (data === 'confirm') {
+    // Another 60 lines
+  }
+  // Giant unmaintainable function
+});
+```
+
+## Callback Data Mapping
+
+For grouped callbacks (like weekdays), create mapping functions.
+
+### ✅ Correct: Mapping Function
+
+```typescript
+// helpers/messageHelpers.ts
+export function getWeekdayFromCallback(callbackData: string): string | null {
+  const weekdayMap: Record<string, string> = {
+    [CALLBACKS.WEEKDAY_MONDAY]: 'Monday',
+    [CALLBACKS.WEEKDAY_TUESDAY]: 'Tuesday',
+    [CALLBACKS.WEEKDAY_WEDNESDAY]: 'Wednesday',
+    [CALLBACKS.WEEKDAY_THURSDAY]: 'Thursday',
+    [CALLBACKS.WEEKDAY_FRIDAY]: 'Friday',
+    [CALLBACKS.WEEKDAY_SATURDAY]: 'Saturday',
+    [CALLBACKS.WEEKDAY_SUNDAY]: 'Sunday',
+  };
+
+  return weekdayMap[callbackData] || null;
+}
+
+// Usage in handler
+async function handleWeekdaySelection(
+  ctx: BotContext,
+  callbackData: string
+) {
+  const weekday = getWeekdayFromCallback(callbackData);
+
+  if (!weekday) {
+    await ctx.answerCbQuery('Invalid selection');
+    return;
+  }
+
+  if (ctx.session.data) {
+    ctx.session.data.selectedDay = weekday;
+  }
+
+  await ctx.answerCbQuery();
+  await ctx.editMessageText(`Selected: ${weekday}`);
+}
+```
+
+### ❌ Incorrect: Switch with Duplication
+
+```typescript
+async function handleWeekdaySelection(ctx: BotContext, data: string) {
+  let weekday: string;
+  
+  switch (data) {
+    case 'weekday_monday':
+      weekday = 'Monday';
+      break;
+    case 'weekday_tuesday':
+      weekday = 'Tuesday';
+      break;
+    // ... repetitive code
+  }
+  
+  ctx.session.data.selectedDay = weekday;
+  await ctx.answerCbQuery();
+  await ctx.editMessageText(`Selected: ${weekday}`);
+}
+```
+
+## Always Answer Callback Queries
+
+Telegram requires answering callback queries to remove the "loading" indicator.
+
+### ✅ Correct: Always Answer
+
+```typescript
+async function handleConfirm(ctx: BotContext) {
+  // Process the confirmation
+  await saveData(ctx.session.data);
+
+  // Answer the callback BEFORE sending new messages
+  await ctx.answerCbQuery();
+
+  // Then send response
+  await ctx.editMessageText('✅ Confirmed!');
+  await ctx.scene.leave();
+}
+
+async function handleError(ctx: BotContext) {
+  // Even on error, answer the callback
+  await ctx.answerCbQuery('An error occurred');
+  await ctx.reply(MESSAGES.ERROR);
+}
+```
+
+### ❌ Incorrect: Forgot to Answer
+
+```typescript
+async function handleConfirm(ctx: BotContext) {
+  await saveData(ctx.session.data);
+  // Missing ctx.answerCbQuery()!
+  await ctx.editMessageText('Confirmed');
+  // User sees eternal loading indicator
+}
+```
+
+## Edit vs Send New Message
+
+When user clicks a button, decide whether to edit or send new.
+
+### ✅ Correct: Edit for Same Context
+
+```typescript
+// Edit when staying in same context
+async function handleWeekdaySelection(ctx: BotContext, callbackData: string) {
+  const weekday = getWeekdayFromCallback(callbackData);
+
+  await ctx.answerCbQuery();
+  
+  // Edit the message with the keyboard
+  await ctx.editMessageText(
+    `✅ Selected: ${weekday}\n\nNext step...`
+  );
+}
+
+// Send new when moving to next step
+async function handleConfirm(ctx: BotContext) {
+  await ctx.answerCbQuery();
+  
+  // Edit to remove keyboard
+  await ctx.editMessageText('✅ Confirmed!');
+  
+  // Send new message for next step
+  await ctx.reply('Starting new process...');
+}
+```
+
+### ❌ Incorrect: Always Send New
+
+```typescript
+async function handleSelection(ctx: BotContext, data: string) {
+  await ctx.answerCbQuery();
+  
+  // Don't send new message when you can edit
+  await ctx.reply(`Selected: ${data}`); // Clutters chat!
+}
+```
+
+## Dynamic Keyboards
+
+Sometimes keyboards need to be built dynamically.
+
+### ✅ Correct: Dynamic Builder
+
+```typescript
+export function getCategoriesKeyboard(categories: string[]) {
+  const rows = categories.map((category, index) => {
+    return [
+      Markup.button.callback(
+        category,
+        `category_${index}`
+      ),
+    ];
+  });
+
+  return Markup.inlineKeyboard(rows);
+}
+
+// With chunking for multiple per row
+export function getOptionsKeyboard(
+  options: Array<{ label: string; value: string }>,
+  perRow: number = 2
+) {
+  const buttons = options.map((opt) =>
+    Markup.button.callback(opt.label, opt.value)
+  );
+
+  const rows = [];
+  for (let i = 0; i < buttons.length; i += perRow) {
+    rows.push(buttons.slice(i, i + perRow));
+  }
+
+  return Markup.inlineKeyboard(rows);
+}
+```
+
+## Emojis in Button Labels
+
+Use emojis for better visual hierarchy and UX.
+
+### ✅ Correct: Meaningful Emojis
+
+```typescript
+export const BUTTONS = {
+  // Action indicators
+  ADD_EXPENSE: '➕ Add Expense',
+  REMOVE_ITEM: '❌ Remove',
+  DONE: '✅ Done',
+  SKIP: '⏭️ Skip',
+  
+  // State indicators
+  CONFIRM: '✅ Confirm',
+  CANCEL: '❌ Cancel',
+  EDIT: '✏️ Edit',
+  
+  // Navigation
+  NEXT: 'Next ▶️',
+  BACK: '◀️ Back',
+  
+  // Plain text for choices
+  YES: 'Yes',
+  NO: 'No',
+} as const;
+```
+
+### ❌ Incorrect: Overuse or Unclear
+
+```typescript
+export const BUTTONS = {
+  ADD: '🎉💰➕✨ Add', // Too many!
+  REMOVE: '🔥 Remove',  // Wrong emotion
+  EDIT: '📝 Edit',      // OK but inconsistent with ✏️
+} as const;
+```
+
+## Callback Data Limits
+
+Telegram limits callback data to 64 bytes.
+
+### ✅ Correct: Short Identifiers
+
+```typescript
+// Good: Short, prefixed
+CALLBACKS = {
+  WEEKDAY_MONDAY: 'wd_mon',     // 6 bytes
+  CATEGORY_1: 'cat_1',          // 5 bytes
+  ITEM_DELETE_123: 'del_123',   // 7 bytes
+}
+```
+
+### ❌ Incorrect: Too Long
+
+```typescript
+// Bad: Too verbose
+CALLBACKS = {
+  SELECT_WEEKDAY_MONDAY: 'select_weekday_monday_option', // 29 bytes - wasteful!
+}
+```
+
+## Testing Inline Keyboards
+
+Always test:
+1. All buttons clickable
+2. Callback data routes correctly
+3. `answerCbQuery()` called
+4. Loading indicator disappears
+5. Message edits work
+6. Error handling works
+
+## Related Rules
+
+- See `12-constants-and-magic-strings.mdc` for constants patterns
+- See `14-fsm-scene-architecture.mdc` for scene architecture
+- See `11-telegraf-scenes-fsm.mdc` for Telegraf FSM patterns

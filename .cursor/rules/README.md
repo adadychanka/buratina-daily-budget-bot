@@ -18,16 +18,24 @@ This directory contains modular Cursor AI rules for the Daily Budget Bot project
 
 - **02-typescript-standards.mdc** - TypeScript coding standards
 - **03-code-formatting.mdc** - Biome formatting rules
+- **14-fsm-scene-architecture.mdc** - Modular FSM scene architecture patterns
 
 ### Development Practices (Priority 3)
 
 - **04-validation-patterns.mdc** - Zod validation patterns
 - **05-logging-standards.mdc** - Winston logging standards
+- **15-inline-keyboard-patterns.mdc** - Telegram inline keyboard best practices
 
 ### Integration & Tools (Priority 4)
 
 - **06-google-sheets-integration.mdc** - Google Sheets API usage
 - **07-testing-with-vitest.mdc** - Vitest testing framework
+
+### Bot Development (Priority 3)
+
+- **11-telegraf-scenes-fsm.mdc** - Telegraf Scenes and FSM patterns
+- **12-constants-and-magic-strings.mdc** - Constants usage patterns
+- **13-locale-and-formatting.mdc** - Serbian locale and formatting
 
 ### DevOps (Priority 5)
 

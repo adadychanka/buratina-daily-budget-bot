@@ -1,0 +1,596 @@
+---
+title: FSM Scene Architecture
+description: Patterns for building modular, maintainable Telegraf FSM scenes
+priority: 2
+tags: [telegraf, fsm, scenes, architecture, modular]
+---
+
+# FSM Scene Architecture
+
+## Overview
+
+When building complex conversational flows with Telegraf Scenes, use a modular architecture that separates concerns and follows SOLID principles. This makes scenes maintainable, testable, and easy to extend.
+
+## Directory Structure
+
+### ✅ Correct: Modular Scene Structure
+
+```
+src/bot/scenes/<scene-name>/
+├── <scene-name>.ts                # Main scene setup, entry/exit
+├── handlers/
+│   ├── textHandlers.ts           # All text input FSM handlers
+│   └── callbackHandlers.ts       # All inline keyboard callbacks
+└── helpers/
+    ├── stateHelpers.ts           # State management utilities
+    ├── validationHelpers.ts      # Field-specific validations
+    └── messageHelpers.ts         # Keyboard builders, formatters
+```
+
+### ❌ Incorrect: Monolithic Scene
+
+```
+src/bot/scenes/
+└── report.ts                     # Everything in one 500+ line file
+```
+
+## Main Scene File
+
+The main scene file should ONLY handle:
+- Scene creation and export
+- Entry/exit handlers
+- Command handlers (`/cancel`, `/skip`)
+- Delegation to handler functions
+
+### ✅ Correct: Clean Main Scene
+
+```typescript
+import { Scenes } from 'telegraf';
+import { message } from 'telegraf/filters';
+import type { BotContext } from '../../../types/bot';
+import { logger } from '../../../config/logger';
+import { SCENES, MESSAGES } from '../../../utils/constants';
+import { handleTextInput } from './handlers/textHandlers';
+import { handleCallbackQuery } from './handlers/callbackHandlers';
+import { initializeState } from './helpers/stateHelpers';
+
+export const myScene = new Scenes.BaseScene<BotContext>(SCENES.MY_SCENE);
+
+// Entry handler
+myScene.enter(async (ctx) => {
+  try {
+    initializeState(ctx);
+    await ctx.reply('Welcome to the scene!');
+    logger.info(`User ${ctx.from?.id} entered scene`);
+  } catch (error) {
+    logger.error('Error in scene entry:', error);
+    await ctx.reply(MESSAGES.ERROR);
+    await ctx.scene.leave();
+  }
+});
+
+// Cancel command
+myScene.command('cancel', async (ctx) => {
+  await ctx.reply(MESSAGES.CANCELLED);
+  logger.info(`User ${ctx.from?.id} cancelled`);
+  await ctx.scene.leave();
+});
+
+// Delegate to handlers
+myScene.on(message('text'), async (ctx) => {
+  try {
+    await handleTextInput(ctx, ctx.message.text);
+  } catch (error) {
+    logger.error('Error processing text:', error);
+    await ctx.reply(MESSAGES.ERROR);
+  }
+});
+
+myScene.on('callback_query', async (ctx) => {
+  try {
+    await handleCallbackQuery(ctx);
+  } catch (error) {
+    logger.error('Error processing callback:', error);
+    await ctx.answerCbQuery('An error occurred');
+  }
+});
+```
+
+### ❌ Incorrect: Business Logic in Main File
+
+```typescript
+export const myScene = new Scenes.BaseScene<BotContext>(SCENES.MY_SCENE);
+
+myScene.on(message('text'), async (ctx) => {
+  // DON'T put FSM logic directly here
+  const input = ctx.message.text;
+  const amount = parseFloat(input);
+  
+  if (isNaN(amount)) {
+    await ctx.reply('Invalid amount!');
+    return;
+  }
+  
+  if (amount < 0) {
+    await ctx.reply('Amount must be positive!');
+    return;
+  }
+  
+  // ... 100 more lines of business logic
+});
+```
+
+## Text Handlers Module
+
+### ✅ Correct: Dispatcher Pattern
+
+```typescript
+// handlers/textHandlers.ts
+import type { BotContext } from '../../../../types/bot';
+import { STEPS } from '../../../../utils/constants';
+import { 
+  isCollectingSubData,
+  handleSubDataFlow 
+} from '../helpers/stateHelpers';
+
+export async function handleTextInput(ctx: BotContext, userInput: string) {
+  const currentStep = ctx.session?.step;
+
+  // Check for sub-flows first
+  if (isCollectingSubData(ctx)) {
+    await handleSubDataFlow(ctx, userInput);
+    return;
+  }
+
+  // Main FSM flow
+  switch (currentStep) {
+    case STEPS.FIELD_ONE:
+      await handleFieldOne(ctx, userInput);
+      break;
+    case STEPS.FIELD_TWO:
+      await handleFieldTwo(ctx, userInput);
+      break;
+    case STEPS.FIELD_THREE:
+      await handleFieldThree(ctx, userInput);
+      break;
+    default:
+      await ctx.reply(MESSAGES.INVALID_INPUT);
+  }
+}
+
+async function handleFieldOne(ctx: BotContext, input: string) {
+  const validation = validateFieldOne(input);
+  
+  if (!validation.isValid) {
+    if (validation.errorMessage) {
+      await ctx.reply(validation.errorMessage);
+    }
+    return;
+  }
+
+  // Store and move to next step
+  if (ctx.session.data) {
+    ctx.session.data.fieldOne = validation.value;
+  }
+  ctx.session.step = STEPS.FIELD_TWO;
+  
+  await ctx.reply(PROMPTS.FIELD_TWO);
+  logger.info(`User ${ctx.from?.id} completed field one`);
+}
+```
+
+### ❌ Incorrect: Nested If-Else Hell
+
+```typescript
+// handlers/textHandlers.ts
+export async function handleTextInput(ctx: BotContext, userInput: string) {
+  if (ctx.session.step === 'field1') {
+    if (userInput) {
+      const num = parseFloat(userInput);
+      if (!isNaN(num)) {
+        if (num > 0) {
+          ctx.session.data.field1 = num;
+          ctx.session.step = 'field2';
+          await ctx.reply('Enter field 2');
+        } else {
+          await ctx.reply('Must be positive');
+        }
+      } else {
+        await ctx.reply('Invalid number');
+      }
+    } else {
+      await ctx.reply('Required');
+    }
+  } else if (ctx.session.step === 'field2') {
+    // More nested logic...
+  }
+}
+```
+
+## Callback Handlers Module
+
+### ✅ Correct: Clean Callback Routing
+
+```typescript
+// handlers/callbackHandlers.ts
+import type { BotContext } from '../../../../types/bot';
+import { CALLBACKS } from '../../../../utils/constants';
+
+export async function handleCallbackQuery(ctx: BotContext) {
+  const callbackData = 
+    ctx.callbackQuery && 'data' in ctx.callbackQuery 
+      ? ctx.callbackQuery.data 
+      : null;
+
+  if (!callbackData) {
+    await ctx.answerCbQuery('Invalid callback');
+    return;
+  }
+
+  try {
+    // Route by prefix for grouped callbacks
+    if (callbackData.startsWith('weekday_')) {
+      await handleWeekdaySelection(ctx, callbackData);
+      return;
+    }
+
+    // Route by exact match
+    switch (callbackData) {
+      case CALLBACKS.OPTION_ADD:
+        await handleOptionAdd(ctx);
+        break;
+      case CALLBACKS.OPTION_SKIP:
+        await handleOptionSkip(ctx);
+        break;
+      case CALLBACKS.CONFIRM:
+        await handleConfirm(ctx);
+        break;
+      default:
+        await ctx.answerCbQuery('Unknown action');
+        logger.warn(`Unknown callback: ${callbackData}`);
+    }
+  } catch (error) {
+    logger.error('Error handling callback:', error);
+    await ctx.answerCbQuery('An error occurred');
+    await ctx.reply(MESSAGES.ERROR);
+  }
+}
+
+async function handleWeekdaySelection(
+  ctx: BotContext, 
+  callbackData: string
+) {
+  const weekday = getWeekdayFromCallback(callbackData);
+  
+  if (!weekday) {
+    await ctx.answerCbQuery('Invalid selection');
+    return;
+  }
+
+  if (ctx.session.data) {
+    ctx.session.data.selectedDay = weekday;
+  }
+
+  await ctx.answerCbQuery();
+  await ctx.editMessageText(`Selected: ${weekday}\n\nNext step...`);
+  logger.info(`User ${ctx.from?.id} selected: ${weekday}`);
+}
+```
+
+### ❌ Incorrect: Giant Switch with Inline Logic
+
+```typescript
+export async function handleCallbackQuery(ctx: BotContext) {
+  const data = ctx.callbackQuery.data; // No type safety!
+  
+  switch (data) {
+    case 'add':
+      // 50 lines of logic inline
+      ctx.session.collecting = true;
+      ctx.session.temp = undefined;
+      await ctx.answerCbQuery();
+      await ctx.editMessageText('Enter amount:');
+      logger.info('User started adding');
+      // ... more logic
+      break;
+    case 'skip':
+      // Another 40 lines inline
+      // ...
+      break;
+  }
+}
+```
+
+## State Helpers Module
+
+### ✅ Correct: Encapsulated State Management
+
+```typescript
+// helpers/stateHelpers.ts
+import type { BotContext, SubItem } from '../../../../types/bot';
+
+export function initializeState(ctx: BotContext): void {
+  if (!ctx.session) {
+    ctx.session = {};
+  }
+  ctx.session.data = {};
+  ctx.session.step = STEPS.INITIAL;
+  ctx.session.items = [];
+  ctx.session.collectingItem = false;
+  ctx.session.tempItemData = undefined;
+}
+
+export function clearState(ctx: BotContext): void {
+  ctx.session.data = undefined;
+  ctx.session.step = undefined;
+  ctx.session.items = undefined;
+  ctx.session.collectingItem = false;
+  ctx.session.tempItemData = undefined;
+}
+
+export function addItem(ctx: BotContext, item: SubItem): void {
+  if (!ctx.session.items) {
+    ctx.session.items = [];
+  }
+  ctx.session.items.push(item);
+}
+
+export function getTotalItems(ctx: BotContext): number {
+  return ctx.session.items?.length ?? 0;
+}
+
+export function isCollectingItem(ctx: BotContext): boolean {
+  return ctx.session.collectingItem === true;
+}
+
+export function startItemCollection(ctx: BotContext): void {
+  ctx.session.collectingItem = true;
+  ctx.session.tempItemData = undefined;
+}
+
+export function clearItemCollection(ctx: BotContext): void {
+  ctx.session.collectingItem = false;
+  ctx.session.tempItemData = undefined;
+}
+```
+
+### ❌ Incorrect: Direct Session Manipulation Everywhere
+
+```typescript
+// Scattered throughout handlers
+ctx.session.data!.items!.push(item); // Unsafe!
+ctx.session.collecting = true;       // No validation
+ctx.session.temp = undefined;        // Magic property
+```
+
+## Message Helpers Module
+
+### ✅ Correct: Reusable Keyboard Builders
+
+```typescript
+// helpers/messageHelpers.ts
+import { Markup } from 'telegraf';
+import { BUTTONS, CALLBACKS } from '../../../../utils/constants';
+
+export function getConfirmationKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback(BUTTONS.CONFIRM, CALLBACKS.CONFIRM),
+      Markup.button.callback(BUTTONS.CANCEL, CALLBACKS.CANCEL),
+    ],
+  ]);
+}
+
+export function getOptionsKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback(BUTTONS.ADD, CALLBACKS.ADD),
+      Markup.button.callback(BUTTONS.SKIP, CALLBACKS.SKIP),
+    ],
+  ]);
+}
+
+export function getWeekdayKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback(BUTTONS.MONDAY, CALLBACKS.WEEKDAY_MONDAY),
+      Markup.button.callback(BUTTONS.TUESDAY, CALLBACKS.WEEKDAY_TUESDAY),
+    ],
+    [
+      Markup.button.callback(BUTTONS.WEDNESDAY, CALLBACKS.WEEKDAY_WEDNESDAY),
+      Markup.button.callback(BUTTONS.THURSDAY, CALLBACKS.WEEKDAY_THURSDAY),
+    ],
+    // ...
+  ]);
+}
+
+export function mapCallbackToValue(callbackData: string): string | null {
+  const valueMap: Record<string, string> = {
+    [CALLBACKS.WEEKDAY_MONDAY]: 'Monday',
+    [CALLBACKS.WEEKDAY_TUESDAY]: 'Tuesday',
+    // ...
+  };
+  return valueMap[callbackData] || null;
+}
+```
+
+### ❌ Incorrect: Inline Keyboard Creation
+
+```typescript
+// handlers/textHandlers.ts
+await ctx.reply('Select day:', Markup.inlineKeyboard([
+  [Markup.button.callback('Mon', 'mon'), Markup.button.callback('Tue', 'tue')],
+  // Hardcoded everywhere, not reusable
+]));
+
+// handlers/callbackHandlers.ts
+if (data === 'mon') { // Magic string!
+  ctx.session.day = 'Monday'; // Inconsistent!
+}
+```
+
+## Validation Helpers Module
+
+### ✅ Correct: Wrapper Functions
+
+```typescript
+// helpers/validationHelpers.ts
+import { 
+  validateAmount, 
+  validateText 
+} from '../../../../utils/validators';
+import { PROMPTS } from '../../../../utils/constants';
+
+export function validateAmountWithPrompt(value: string) {
+  const validation = validateAmount(value);
+  if (!validation.isValid) {
+    return {
+      ...validation,
+      errorMessage: `❌ ${validation.error}\n\n${PROMPTS.RETRY_AMOUNT}`,
+    };
+  }
+  return { ...validation, errorMessage: undefined };
+}
+
+export function validateRequiredText(value: string) {
+  const validation = validateText(value, 1);
+  if (!validation.isValid) {
+    return {
+      ...validation,
+      errorMessage: `❌ ${validation.error}\n\n${PROMPTS.RETRY_TEXT}`,
+    };
+  }
+  return { ...validation, errorMessage: undefined };
+}
+```
+
+### ❌ Incorrect: Validation Logic in Handlers
+
+```typescript
+async function handleAmount(ctx: BotContext, input: string) {
+  const num = parseFloat(input);
+  if (isNaN(num)) {
+    await ctx.reply('❌ Invalid number\n\nPlease enter a valid amount:');
+    return;
+  }
+  if (num < 0) {
+    await ctx.reply('❌ Must be positive\n\nPlease enter a valid amount:');
+    return;
+  }
+  // Repeated validation logic everywhere
+}
+```
+
+## Sub-Flow Pattern
+
+Use sub-flows for complex multi-step collections (like adding multiple items):
+
+### ✅ Correct: Sub-Flow with State Flags
+
+```typescript
+// Session structure
+interface SessionData {
+  step?: string;              // Main FSM step
+  data?: ReportData;          // Main data
+  collectingExpense?: boolean; // Sub-flow flag
+  tempExpenseAmount?: number;  // Sub-flow temp data
+  expenses?: Expense[];        // Sub-flow collection
+}
+
+// In textHandlers.ts
+export async function handleTextInput(ctx: BotContext, userInput: string) {
+  // Check sub-flow FIRST
+  if (isCollectingExpenseAmount(ctx)) {
+    await handleExpenseAmount(ctx, userInput);
+    return;
+  }
+
+  if (isCollectingExpenseDescription(ctx)) {
+    await handleExpenseDescription(ctx, userInput);
+    return;
+  }
+
+  // Then main FSM
+  switch (ctx.session?.step) {
+    case STEPS.MAIN_FIELD:
+      await handleMainField(ctx, userInput);
+      break;
+    // ...
+  }
+}
+```
+
+## Conditional Steps
+
+Skip steps based on previous data:
+
+### ✅ Correct: Conditional Navigation
+
+```typescript
+async function handleBlackCashAmount(ctx: BotContext, input: string) {
+  const validation = validateAmountWithPrompt(input);
+
+  if (!validation.isValid) {
+    if (validation.errorMessage) {
+      await ctx.reply(validation.errorMessage);
+    }
+    return;
+  }
+
+  if (ctx.session.data) {
+    ctx.session.data.blackCash = validation.amount;
+  }
+
+  // Conditional: Only ask for location if amount > 0
+  if (validation.amount && validation.amount > 0) {
+    ctx.session.step = STEPS.BLACK_CASH_LOCATION;
+    await ctx.reply(PROMPTS.LOCATION, getLocationKeyboard());
+  } else {
+    // Skip directly to next step
+    ctx.session.step = STEPS.NEXT_FIELD;
+    await ctx.reply(PROMPTS.NEXT_FIELD);
+  }
+}
+```
+
+## Benefits of This Architecture
+
+1. **Testability** - Each module can be tested independently
+2. **Maintainability** - Easy to find and update specific handlers
+3. **Reusability** - Helper functions used across handlers
+4. **Readability** - Clear separation of concerns
+5. **Scalability** - Add new steps without modifying existing code
+6. **Type Safety** - Proper TypeScript types throughout
+7. **Error Handling** - Centralized error handling patterns
+
+## Anti-Patterns to Avoid
+
+❌ **God Scene** - 500+ line scene file with all logic
+❌ **Magic Strings** - Hardcoded callback data and step names
+❌ **Inline Keyboards** - Keyboard creation scattered everywhere
+❌ **Session Soup** - Direct `ctx.session.data!.field!` everywhere
+❌ **Copy-Paste** - Duplicated validation/formatting logic
+❌ **No Error Handling** - Missing try-catch blocks
+❌ **Silent Failures** - Errors without logging
+❌ **Nested Conditionals** - Deep if-else pyramids
+
+## When to Use This Pattern
+
+✅ Use modular architecture when:
+- Scene has 5+ FSM steps
+- Scene has inline keyboards
+- Scene has sub-flows (collecting multiple items)
+- Scene has conditional navigation
+- Scene will grow over time
+
+❓ Simple architecture may be OK when:
+- Scene has 2-3 simple steps
+- No inline keyboards
+- Linear flow only
+- Won't grow in complexity
+
+## Related Rules
+
+- See `02-typescript-standards.mdc` for TypeScript best practices
+- See `12-constants-and-magic-strings.mdc` for constants usage
+- See `11-telegraf-scenes-fsm.mdc` for Telegraf-specific patterns
