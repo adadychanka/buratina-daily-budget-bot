@@ -1,12 +1,12 @@
-import { Scenes, session, Telegraf } from "telegraf";
-import { logger } from "../config/logger";
-import { config } from "../config/settings";
-import type { BotContext } from "../types/bot";
-import { SCENES, MESSAGES } from "../utils/constants";
-import { helpHandler } from "./handlers/help";
-import { historyHandler } from "./handlers/history";
-import { startHandler } from "./handlers/start";
-import { reportScene } from "./scenes/report";
+import { Scenes, session, Telegraf } from 'telegraf';
+import { logger } from '../config/logger';
+import { config } from '../config/settings';
+import type { BotContext } from '../types/bot';
+import { MESSAGES, SCENES } from '../utils/constants';
+import { helpHandler } from './handlers/help';
+import { historyHandler } from './handlers/history';
+import { startHandler } from './handlers/start';
+import { reportScene } from './scenes/report/report';
 
 export class Bot {
   private bot: Telegraf<BotContext>;
@@ -32,9 +32,7 @@ export class Bot {
     // Logging middleware
     this.bot.use((ctx, next) => {
       const messageText =
-        ctx.message && "text" in ctx.message
-          ? ctx.message.text
-          : "non-text message";
+        ctx.message && 'text' in ctx.message ? ctx.message.text : 'non-text message';
       logger.info(`User ${ctx.from?.id} sent message: ${messageText}`);
       return next();
     });
@@ -44,14 +42,14 @@ export class Bot {
     // Command handlers
     this.bot.start(startHandler);
     this.bot.help(helpHandler);
-    this.bot.command("history", historyHandler);
+    this.bot.command('history', historyHandler);
 
     // Report command - enter the report scene
-    this.bot.command("report", (ctx) => ctx.scene.enter(SCENES.REPORT));
+    this.bot.command('report', (ctx) => ctx.scene.enter(SCENES.REPORT));
 
     // Error handling
     this.bot.catch((err, ctx) => {
-      logger.error("Bot error:", err);
+      logger.error('Bot error:', err);
       ctx.reply(MESSAGES.ERROR);
     });
   }
@@ -59,9 +57,9 @@ export class Bot {
   async start() {
     try {
       await this.bot.launch();
-      logger.info("Bot launched successfully");
+      logger.info('Bot launched successfully');
     } catch (error) {
-      logger.error("Failed to launch bot:", error);
+      logger.error('Failed to launch bot:', error);
       throw error;
     }
   }
@@ -69,9 +67,9 @@ export class Bot {
   async stop() {
     try {
       this.bot.stop();
-      logger.info("Bot stopped");
+      logger.info('Bot stopped');
     } catch (error) {
-      logger.error("Failed to stop bot:", error);
+      logger.error('Failed to stop bot:', error);
       throw error;
     }
   }
