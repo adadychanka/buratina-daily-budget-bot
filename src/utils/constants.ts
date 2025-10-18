@@ -53,11 +53,57 @@ export const PROMPTS = {
   CASH_AMOUNT: 'Enter Cash amount:',
   WHITE_CASH_AMOUNT: 'Enter White Cash amount:',
   BLACK_CASH_AMOUNT: 'Enter Black Cash amount:',
-  BLACK_CASH_LOCATION: "Where was Black Cash saved (e.g., 'Friday', 'Monday')?",
+  BLACK_CASH_LOCATION: 'Select the weekday when Black Cash was saved:',
   CARD_SALES_AMOUNT: 'Enter Card sales amount:',
+  EXPENSES_QUESTION: 'Do you have any expenses to record?',
+  EXPENSE_AMOUNT: 'Enter expense amount:',
+  EXPENSE_DESCRIPTION: 'Enter expense description:',
   CASHBOX_AMOUNT: 'Enter total amount in cashbox at end of shift:',
-  NOTES: 'Any additional notes?',
+  NOTES: 'Any additional notes? (Type message or /skip)',
   INVALID_AMOUNT: 'Please enter a valid amount:',
+  INVALID_TEXT: 'Please enter valid text:',
+} as const;
+
+// Button labels
+export const BUTTONS = {
+  // Weekday buttons
+  MONDAY: 'Monday',
+  TUESDAY: 'Tuesday',
+  WEDNESDAY: 'Wednesday',
+  THURSDAY: 'Thursday',
+  FRIDAY: 'Friday',
+  SATURDAY: 'Saturday',
+  SUNDAY: 'Sunday',
+  // Expense buttons
+  ADD_EXPENSE: '➕ Add Expense',
+  SKIP_EXPENSES: '⏭️ Skip Expenses',
+  ADD_ANOTHER_EXPENSE: '➕ Add Another',
+  DONE_EXPENSES: '✅ Done',
+  // Confirmation buttons
+  CONFIRM: '✅ Confirm',
+  EDIT: '✏️ Edit',
+  CANCEL: '❌ Cancel',
+} as const;
+
+// Callback data constants
+export const CALLBACKS = {
+  // Weekdays
+  WEEKDAY_MONDAY: 'weekday_monday',
+  WEEKDAY_TUESDAY: 'weekday_tuesday',
+  WEEKDAY_WEDNESDAY: 'weekday_wednesday',
+  WEEKDAY_THURSDAY: 'weekday_thursday',
+  WEEKDAY_FRIDAY: 'weekday_friday',
+  WEEKDAY_SATURDAY: 'weekday_saturday',
+  WEEKDAY_SUNDAY: 'weekday_sunday',
+  // Expenses
+  EXPENSE_ADD: 'expense_add',
+  EXPENSE_SKIP: 'expense_skip',
+  EXPENSE_ANOTHER: 'expense_another',
+  EXPENSE_DONE: 'expense_done',
+  // Confirmation
+  CONFIRM_REPORT: 'confirm_report',
+  EDIT_REPORT: 'edit_report',
+  CANCEL_REPORT: 'cancel_report',
 } as const;
 
 // Google Sheets constants

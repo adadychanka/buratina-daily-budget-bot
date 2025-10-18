@@ -1,8 +1,10 @@
-import type { Context, Scenes } from "telegraf";
+import type { Context, Scenes } from 'telegraf';
 
 export interface SessionData extends Scenes.SceneSession {
   reportData?: Partial<ReportData>;
   step?: string;
+  collectingExpense?: boolean;
+  currentExpenseAmount?: number;
 }
 
 export interface BotContext extends Context {
