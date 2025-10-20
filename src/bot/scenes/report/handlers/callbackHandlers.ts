@@ -65,7 +65,9 @@ export async function handleWeekdaySelection(ctx: BotContext, callbackData: stri
 
     await ctx.answerCbQuery();
     await ctx.editMessageText(
-      `✅ Black Cash location saved\n\n🖤 Black Cash: ${formatAmount(blackCashAmount)}\n📍 Location: ${weekday}\n\n${PROMPTS.CARD_SALES_AMOUNT}`
+      `✅ Black Cash location saved\n\n🖤 Black Cash: ${formatAmount(
+        blackCashAmount
+      )}\n📍 Location: ${weekday}\n\n${PROMPTS.CARD_SALES_AMOUNT}`
     );
 
     logger.info(
@@ -219,7 +221,9 @@ export async function handleEditBlackCashLocation(ctx: BotContext) {
   setEditingField(ctx, 'blackCashLocation');
 
   await ctx.editMessageText(
-    `Current location: ${ctx.session.reportData?.blackCashLocation || 'None'}\n\nSelect new weekday:`,
+    `Current location: ${
+      ctx.session.reportData?.blackCashLocation || 'None'
+    }\n\nSelect new weekday:`,
     getWeekdayKeyboard()
   );
 }
@@ -335,7 +339,35 @@ export async function handleCallbackQuery(ctx: BotContext) {
       return;
     }
 
-    // Edit mode callbacks
+    // Main action callbacks (handle before field-specific edit callbacks)
+    switch (callbackData) {
+      case CALLBACKS.EXPENSE_ADD:
+        await handleExpenseAdd(ctx);
+        return;
+      case CALLBACKS.EXPENSE_SKIP:
+        await handleExpenseSkip(ctx);
+        return;
+      case CALLBACKS.EXPENSE_ANOTHER:
+        await handleExpenseAnother(ctx);
+        return;
+      case CALLBACKS.EXPENSE_DONE:
+        await handleExpenseDone(ctx);
+        return;
+      case CALLBACKS.CONFIRM_REPORT:
+        await handleConfirmReport(ctx);
+        return;
+      case CALLBACKS.EDIT_REPORT:
+        await handleEditReport(ctx);
+        return;
+      case CALLBACKS.CANCEL_REPORT:
+        await handleCancelReport(ctx);
+        return;
+      case EDIT_CALLBACKS.DONE_EDITING:
+        await handleDoneEditing(ctx);
+        return;
+    }
+
+    // Field-specific edit mode callbacks
     if (callbackData.startsWith('edit_')) {
       switch (callbackData) {
         case EDIT_CALLBACKS.EDIT_CASH:
@@ -369,36 +401,9 @@ export async function handleCallbackQuery(ctx: BotContext) {
       return;
     }
 
-    // Expense and confirmation callbacks
-    switch (callbackData) {
-      case CALLBACKS.EXPENSE_ADD:
-        await handleExpenseAdd(ctx);
-        break;
-      case CALLBACKS.EXPENSE_SKIP:
-        await handleExpenseSkip(ctx);
-        break;
-      case CALLBACKS.EXPENSE_ANOTHER:
-        await handleExpenseAnother(ctx);
-        break;
-      case CALLBACKS.EXPENSE_DONE:
-        await handleExpenseDone(ctx);
-        break;
-      case CALLBACKS.CONFIRM_REPORT:
-        await handleConfirmReport(ctx);
-        break;
-      case CALLBACKS.EDIT_REPORT:
-        await handleEditReport(ctx);
-        break;
-      case CALLBACKS.CANCEL_REPORT:
-        await handleCancelReport(ctx);
-        break;
-      case EDIT_CALLBACKS.DONE_EDITING:
-        await handleDoneEditing(ctx);
-        break;
-      default:
-        await ctx.answerCbQuery('Unknown action');
-        logger.warn(`Unknown callback data: ${callbackData}`);
-    }
+    // Unknown callback
+    await ctx.answerCbQuery('Unknown action');
+    logger.warn(`Unknown callback data: ${callbackData}`);
   } catch (error) {
     logger.error('Error handling callback query:', error);
     await ctx.answerCbQuery('An error occurred');
