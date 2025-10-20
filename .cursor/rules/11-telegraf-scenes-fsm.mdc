@@ -1,0 +1,409 @@
+---
+title: Telegraf Scenes and FSM Patterns
+description: Best practices for implementing FSM-based bot flows with Telegraf Scenes
+tags: [telegraf, bot, fsm, scenes]
+version: 1.0.0
+---
+
+# Telegraf Scenes and FSM Patterns
+
+## Overview
+
+This project uses **Telegraf Scenes** to implement FSM (Finite State Machine) flows for step-by-step user interactions. This approach provides a structured way to collect multi-field data from users.
+
+## Scene Structure
+
+### Scene Registration
+
+```typescript
+// src/bot/bot.ts
+import { Scenes, session, Telegraf } from "telegraf";
+import { reportScene } from "./scenes/report";
+import { SCENES } from "../utils/constants";
+
+export class Bot {
+  private bot: Telegraf<BotContext>;
+  private stage;
+
+  constructor() {
+    this.bot = new Telegraf<BotContext>(config.botToken);
+    
+    // Create stage with all scenes
+    this.stage = new Scenes.Stage<BotContext>([reportScene]);
+    
+    this.setupMiddleware();
+  }
+
+  private setupMiddleware() {
+    // Session MUST come before stage
+    this.bot.use(session());
+    
+    // Stage middleware
+    this.bot.use(this.stage.middleware());
+  }
+
+  private setupHandlers() {
+    // Enter scene via command
+    this.bot.command("report", (ctx) => ctx.scene.enter(SCENES.REPORT));
+  }
+}
+```
+
+### Scene Implementation Pattern
+
+```typescript
+// src/bot/scenes/report.ts
+import { Scenes } from "telegraf";
+import { message } from "telegraf/filters";
+import type { BotContext } from "../../types/bot";
+import { SCENES, REPORT_STEPS, MESSAGES, PROMPTS } from "../../utils/constants";
+
+export const reportScene = new Scenes.BaseScene<BotContext>(SCENES.REPORT);
+
+// 1. Scene Entry Handler
+reportScene.enter(async (ctx) => {
+  // Initialize session
+  if (!ctx.session) {
+    ctx.session = {};
+  }
+  ctx.session.reportData = {};
+  ctx.session.step = REPORT_STEPS.FIRST_FIELD;
+
+  await ctx.reply(`${MESSAGES.SCENE_START}\n\n${PROMPTS.FIRST_FIELD}`);
+  logger.info(`User ${ctx.from?.id} entered scene`);
+});
+
+// 2. Cancel Command Handler
+reportScene.command("cancel", async (ctx) => {
+  // Clear session data
+  if (ctx.session) {
+    ctx.session.reportData = undefined;
+    ctx.session.step = undefined;
+  }
+
+  await ctx.reply(MESSAGES.CANCELLED);
+  logger.info(`User ${ctx.from?.id} cancelled scene`);
+  await ctx.scene.leave();
+});
+
+// 3. Text Input Handler with Step Logic
+reportScene.on(message("text"), async (ctx) => {
+  try {
+    const userInput = ctx.message.text;
+    const currentStep = ctx.session?.step;
+
+    // Handle each step
+    if (currentStep === REPORT_STEPS.FIRST_FIELD) {
+      // Validate input
+      const validation = validateInput(userInput);
+      
+      if (!validation.isValid) {
+        await ctx.reply(`❌ ${validation.error}\n\n${PROMPTS.RETRY}`);
+        return;
+      }
+
+      // Store valid data
+      ctx.session.reportData.firstField = validation.value;
+      ctx.session.step = REPORT_STEPS.SECOND_FIELD;
+
+      // Show interim confirmation and next prompt
+      await ctx.reply(
+        `${MESSAGES.SAVED}: ${formatValue(validation.value)}\n\n${PROMPTS.SECOND_FIELD}`
+      );
+    }
+    // Add more steps as needed...
+    
+  } catch (error) {
+    logger.error("Error in scene:", error);
+    await ctx.reply(MESSAGES.ERROR);
+  }
+});
+```
+
+## Best Practices
+
+### ✅ Do
+
+1. **Use Constants for Scene IDs and Steps**
+   ```typescript
+   // ✅ Good
+   ctx.scene.enter(SCENES.REPORT);
+   ctx.session.step = REPORT_STEPS.CASH_AMOUNT;
+   
+   // ❌ Bad
+   ctx.scene.enter("report");
+   ctx.session.step = "cash_amount";
+   ```
+
+2. **Always Initialize Session in Scene Entry**
+   ```typescript
+   reportScene.enter(async (ctx) => {
+     if (!ctx.session) {
+       ctx.session = {};
+     }
+     ctx.session.reportData = {};
+     ctx.session.step = REPORT_STEPS.INITIAL;
+   });
+   ```
+
+3. **Provide Cancel Functionality**
+   ```typescript
+   reportScene.command("cancel", async (ctx) => {
+     // Clean up session
+     if (ctx.session) {
+       ctx.session.reportData = undefined;
+       ctx.session.step = undefined;
+     }
+     await ctx.reply(MESSAGES.CANCELLED);
+     await ctx.scene.leave();
+   });
+   ```
+
+4. **Show Interim Confirmations**
+   ```typescript
+   // After each successful input
+   await ctx.reply(
+     `${MESSAGES.SAVED}: ${formatAmount(value)}\n\n${PROMPTS.NEXT_FIELD}`
+   );
+   ```
+
+5. **Validate with Unlimited Retries**
+   ```typescript
+   if (!validation.isValid) {
+     await ctx.reply(`❌ ${validation.error}\n\n${PROMPTS.RETRY}`);
+     return; // Stay on same step
+   }
+   ```
+
+6. **Use Modern Telegraf Filters**
+   ```typescript
+   // ✅ Good (modern)
+   import { message } from "telegraf/filters";
+   reportScene.on(message("text"), async (ctx) => {
+     const userInput = ctx.message.text; // Type-safe
+   });
+   
+   // ❌ Bad (deprecated)
+   reportScene.on("text", async (ctx) => {
+     // Deprecated signature
+   });
+   ```
+
+7. **Log User Actions**
+   ```typescript
+   logger.info(`User ${ctx.from?.id} entered step: ${currentStep}`);
+   logger.info(`User ${ctx.from?.id} completed scene with data: ${summary}`);
+   ```
+
+8. **Clear Session on Exit**
+   ```typescript
+   // At scene completion
+   ctx.session.reportData = undefined;
+   ctx.session.step = undefined;
+   await ctx.scene.leave();
+   ```
+
+### ❌ Don't
+
+1. **Don't Use Magic Strings**
+   ```typescript
+   // ❌ Bad
+   ctx.scene.enter("report");
+   
+   // ✅ Good
+   ctx.scene.enter(SCENES.REPORT);
+   ```
+
+2. **Don't Skip Input Validation**
+   ```typescript
+   // ❌ Bad
+   ctx.session.reportData.amount = userInput; // No validation!
+   
+   // ✅ Good
+   const validation = validateAmount(userInput);
+   if (validation.isValid) {
+     ctx.session.reportData.amount = validation.amount;
+   }
+   ```
+
+3. **Don't Forget Error Handling**
+   ```typescript
+   // ✅ Good
+   try {
+     // Scene logic
+   } catch (error) {
+     logger.error("Scene error:", error);
+     await ctx.reply(MESSAGES.ERROR);
+   }
+   ```
+
+4. **Don't Forget to Register Stage Before Other Middleware**
+   ```typescript
+   // ✅ Good order
+   this.bot.use(session());        // 1. Session first
+   this.bot.use(this.stage.middleware()); // 2. Stage second
+   this.bot.use(loggingMiddleware); // 3. Other middleware
+   ```
+
+## Session Type Definition
+
+```typescript
+// src/types/bot.ts
+import type { Context, Scenes } from "telegraf";
+
+export interface SessionData extends Scenes.SceneSession {
+  reportData?: Partial<ReportData>;
+  step?: string;
+}
+
+export interface BotContext extends Context {
+  session: SessionData;
+  scene: Scenes.SceneContextScene<BotContext>;
+}
+```
+
+## Step Flow Pattern
+
+```
+Scene Entry
+    ↓
+Step 1: Collect Field A
+    ↓ (validate)
+    ├─→ Invalid: Show error, retry
+    └─→ Valid: Save, show confirmation
+        ↓
+Step 2: Collect Field B
+    ↓ (validate)
+    ├─→ Invalid: Show error, retry
+    └─→ Valid: Save, show confirmation
+        ↓
+Final Step: Show Summary
+    ↓
+Exit Scene
+```
+
+## Multi-Entry Fields (e.g., Expenses)
+
+For fields that can have multiple entries (like expenses):
+
+```typescript
+if (currentStep === REPORT_STEPS.EXPENSES) {
+  // Collect expense amount and description
+  // Then show inline keyboard:
+  // ["Add another expense" | "Finish expenses"]
+  
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback("Add another expense", "add_expense")],
+    [Markup.button.callback("Finish expenses", "finish_expenses")]
+  ]);
+  
+  await ctx.reply("Expense added. Continue?", keyboard);
+}
+
+// Handle callbacks
+reportScene.action("add_expense", async (ctx) => {
+  await ctx.answerCbQuery();
+  ctx.session.step = REPORT_STEPS.EXPENSES; // Stay on same step
+  await ctx.reply(PROMPTS.EXPENSE_AMOUNT);
+});
+
+reportScene.action("finish_expenses", async (ctx) => {
+  await ctx.answerCbQuery();
+  ctx.session.step = REPORT_STEPS.NEXT_FIELD;
+  await ctx.reply(PROMPTS.NEXT_FIELD);
+});
+```
+
+## Testing Scenes
+
+```typescript
+// tests/scenes/report.test.ts
+import { describe, it, expect } from 'vitest';
+import { reportScene } from '../../src/bot/scenes/report';
+
+describe('Report Scene', () => {
+  it('should initialize session on entry', async () => {
+    const ctx = createMockContext();
+    await reportScene.enterHandler(ctx);
+    
+    expect(ctx.session.reportData).toBeDefined();
+    expect(ctx.session.step).toBe(REPORT_STEPS.CASH_AMOUNT);
+  });
+
+  it('should validate numeric input', async () => {
+    const ctx = createMockContext();
+    ctx.message = { text: 'invalid' };
+    
+    await reportScene.textHandler(ctx);
+    
+    expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('❌'));
+  });
+});
+```
+
+## Common Patterns
+
+### Pattern 1: Simple Linear Flow
+Good for: Forms with sequential, required fields
+
+```
+Field 1 → Field 2 → Field 3 → Summary → Exit
+```
+
+### Pattern 2: Conditional Flow
+Good for: Forms with optional fields or branching logic
+
+```
+Field 1 → Optional Field? 
+            ├─→ Yes → Field 2a → Summary
+            └─→ No  → Field 2b → Summary
+```
+
+### Pattern 3: Multi-Entry Loop
+Good for: Collecting multiple items (expenses, tags, etc.)
+
+```
+Field 1 → Add Item Loop ⟲ → Summary → Exit
+```
+
+## Error Recovery
+
+Always provide a way out:
+- `/cancel` command to exit scene
+- Clear error messages with retry instructions
+- Graceful handling of unexpected input
+- Session cleanup on errors
+
+```typescript
+try {
+  // Scene logic
+} catch (error) {
+  logger.error("Scene error:", error);
+  // Clean up session
+  ctx.session.reportData = undefined;
+  ctx.session.step = undefined;
+  await ctx.reply(MESSAGES.ERROR);
+  await ctx.scene.leave();
+}
+```
+
+## Performance Considerations
+
+- Keep session data minimal (don't store large objects)
+- Clear session data when leaving scene
+- Use database for persistent data, session for temporary state
+- Avoid long-running operations in message handlers
+
+## Locale and Formatting
+
+Always use formatters for user-facing values:
+
+```typescript
+import { formatAmount } from "../../utils/formatters";
+
+// ✅ Good
+await ctx.reply(`Saved: ${formatAmount(value)}`);
+
+// ❌ Bad
+await ctx.reply(`Saved: ${value}`);
+```

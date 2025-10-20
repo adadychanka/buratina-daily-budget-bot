@@ -1,23 +1,33 @@
-import { session, Telegraf } from 'telegraf';
+import { Scenes, session, Telegraf } from 'telegraf';
 import { logger } from '../config/logger';
 import { config } from '../config/settings';
 import type { BotContext } from '../types/bot';
+import { MESSAGES, SCENES } from '../utils/constants';
 import { helpHandler } from './handlers/help';
 import { historyHandler } from './handlers/history';
 import { startHandler } from './handlers/start';
+import { reportScene } from './scenes/report/report';
 
 export class Bot {
   private bot: Telegraf<BotContext>;
+  private stage;
 
   constructor() {
     this.bot = new Telegraf<BotContext>(config.botToken);
+
+    // Create stage with scenes
+    this.stage = new Scenes.Stage<BotContext>([reportScene]);
+
     this.setupMiddleware();
     this.setupHandlers();
   }
 
   private setupMiddleware() {
-    // Session middleware
+    // Session middleware (must be before stage)
     this.bot.use(session());
+
+    // Stage middleware
+    this.bot.use(this.stage.middleware());
 
     // Logging middleware
     this.bot.use((ctx, next) => {
@@ -34,17 +44,13 @@ export class Bot {
     this.bot.help(helpHandler);
     this.bot.command('history', historyHandler);
 
-    // Simple report handler (temporary)
-    this.bot.command('report', (ctx) => {
-      ctx.reply(
-        'Report creation feature will be added soon. Please use /help for more information.'
-      );
-    });
+    // Report command - enter the report scene
+    this.bot.command('report', (ctx) => ctx.scene.enter(SCENES.REPORT));
 
     // Error handling
     this.bot.catch((err, ctx) => {
       logger.error('Bot error:', err);
-      ctx.reply('An error occurred. Please try again later.');
+      ctx.reply(MESSAGES.ERROR);
     });
   }
 
