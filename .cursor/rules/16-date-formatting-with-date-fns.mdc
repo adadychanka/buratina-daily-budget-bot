@@ -1,0 +1,218 @@
+# Date Formatting with date-fns
+
+## Overview
+
+This project uses `date-fns` as the standard library for all date formatting and manipulation operations. This ensures consistency, reliability, and better performance across the entire codebase.
+
+## Rules
+
+### 1. Use date-fns for All Date Operations
+
+**✅ DO:**
+```typescript
+import { format, subDays, addDays, parseISO } from 'date-fns';
+
+// Format dates
+const formattedDate = format(new Date(), 'dd.MM.yyyy');
+const formattedTime = format(new Date(), 'HH:mm:ss');
+const formattedDateTime = format(new Date(), 'dd.MM.yyyy HH:mm');
+
+// Date calculations
+const yesterday = subDays(new Date(), 1);
+const tomorrow = addDays(new Date(), 1);
+
+// Parse dates
+const parsedDate = parseISO('2024-10-20');
+```
+
+**❌ DON'T:**
+```typescript
+// Avoid native Date methods for formatting
+const formatted = new Date().toLocaleDateString('sr-RS');
+const isoString = new Date().toISOString().split('T')[0];
+
+// Avoid manual date calculations
+const yesterday = new Date();
+yesterday.setDate(yesterday.getDate() - 1);
+```
+
+### 2. Standard Date Formats
+
+Use these consistent format patterns throughout the project:
+
+```typescript
+// Display formats
+const displayDate = format(date, 'dd.MM.yyyy');        // 20.10.2024
+const displayTime = format(date, 'HH:mm:ss');          // 14:30:25
+const displayDateTime = format(date, 'dd.MM.yyyy HH:mm'); // 20.10.2024 14:30
+
+// Export formats
+const exportDate = format(date, 'yyyy-MM-dd');         // 2024-10-20
+const exportDateTime = format(date, 'yyyy-MM-dd HH:mm:ss'); // 2024-10-20 14:30:25
+```
+
+### 3. Date Helper Functions
+
+Create reusable helper functions in `src/utils/formatters.ts`:
+
+```typescript
+import { format } from 'date-fns';
+
+// Standard display formatting
+export function formatDateForDisplay(date: Date): string {
+  return format(date, 'dd.MM.yyyy');
+}
+
+export function formatTime(date: Date): string {
+  return format(date, 'HH:mm:ss');
+}
+
+export function formatDateTime(date: Date): string {
+  return format(date, 'dd.MM.yyyy HH:mm');
+}
+
+// Export formatting
+export function formatDateForExport(date: Date): string {
+  return format(date, 'yyyy-MM-dd');
+}
+
+// Relative formatting
+export function formatRelativeDate(daysAgo: number): string {
+  switch (daysAgo) {
+    case 0: return 'Today';
+    case 1: return 'Yesterday';
+    case 2: return '2 days ago';
+    default: return `${daysAgo} days ago`;
+  }
+}
+```
+
+### 4. Date Calculations
+
+Use date-fns functions for all date arithmetic:
+
+```typescript
+import { subDays, addDays, differenceInDays, isToday, isYesterday } from 'date-fns';
+
+// Calculate relative dates
+const yesterday = subDays(new Date(), 1);
+const lastWeek = subDays(new Date(), 7);
+
+// Date comparisons
+const daysDiff = differenceInDays(today, someDate);
+const isTodayDate = isToday(someDate);
+const isYesterdayDate = isYesterday(someDate);
+```
+
+### 5. Import Strategy
+
+**Tree-shake imports** - only import what you need:
+
+```typescript
+// ✅ Good - specific imports
+import { format, subDays } from 'date-fns';
+
+// ❌ Avoid - importing entire library
+import * as dateFns from 'date-fns';
+```
+
+### 6. Error Handling
+
+Always handle invalid dates gracefully:
+
+```typescript
+import { isValid, format } from 'date-fns';
+
+function safeFormatDate(date: Date | string | null | undefined): string {
+  if (!date) return 'N/A';
+  
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  
+  if (!isValid(dateObj)) {
+    return 'Invalid Date';
+  }
+  
+  return format(dateObj, 'dd.MM.yyyy');
+}
+```
+
+### 7. Timezone Considerations
+
+For this project, all dates are handled in local timezone:
+
+```typescript
+// ✅ Use local timezone (default behavior)
+const localDate = new Date();
+const formatted = format(localDate, 'dd.MM.yyyy');
+
+// If timezone support is needed later, use date-fns-tz
+// import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
+```
+
+## Implementation Examples
+
+### Report Date Selection
+```typescript
+import { subDays, format } from 'date-fns';
+
+export function getDateKeyboard() {
+  const today = new Date();
+  const yesterday = subDays(today, 1);
+  const twoDaysAgo = subDays(today, 2);
+
+  return Markup.inlineKeyboard([
+    [Markup.button.callback(`Today (${format(today, 'dd.MM.yyyy')})`, 'date_today')],
+    [Markup.button.callback(`Yesterday (${format(yesterday, 'dd.MM.yyyy')})`, 'date_yesterday')],
+    [Markup.button.callback(`2 days ago (${format(twoDaysAgo, 'dd.MM.yyyy')})`, 'date_2_days')],
+  ]);
+}
+```
+
+### Report Summary Formatting
+```typescript
+import { format, differenceInDays } from 'date-fns';
+
+export function formatDateWithRelative(date: Date): string {
+  const today = new Date();
+  const diffDays = differenceInDays(today, date);
+  
+  const dateStr = format(date, 'dd.MM.yyyy');
+  const relativeStr = formatRelativeDate(diffDays);
+  
+  return `${dateStr} (${relativeStr})`;
+}
+```
+
+## Migration Guidelines
+
+When refactoring existing date code:
+
+1. **Replace `toLocaleDateString()`** with `format(date, 'dd.MM.yyyy')`
+2. **Replace `toISOString().split('T')[0]`** with `format(date, 'yyyy-MM-dd')`
+3. **Replace manual date arithmetic** with date-fns functions
+4. **Replace `Intl.DateTimeFormat`** with date-fns format patterns
+
+## Benefits
+
+- **Consistency**: Same formatting patterns across the entire app
+- **Performance**: Tree-shakeable, only bundle what you use
+- **Reliability**: Well-tested library with TypeScript support
+- **Maintainability**: Centralized date logic in helper functions
+- **Internationalization**: Easy to add locale support later
+
+## Dependencies
+
+```json
+{
+  "dependencies": {
+    "date-fns": "^3.6.0"
+  }
+}
+```
+
+## Related Files
+
+- `src/utils/formatters.ts` - Date formatting helper functions
+- `src/bot/scenes/report/helpers/dateHelpers.ts` - Date selection helpers
+- `src/types/bot.ts` - Date field definitions
+- `src/utils/constants.ts` - Date-related constants

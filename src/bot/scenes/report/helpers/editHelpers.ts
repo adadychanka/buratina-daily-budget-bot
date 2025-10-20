@@ -44,5 +44,5 @@ export function formatCurrentValueMessage(
   fieldName: string,
   currentValue: string | number | undefined
 ): string {
-  return `Current ${fieldName}: ${currentValue ?? 'None'}\n\nEnter new value or type "skip" to keep current:`;
+  return `🤳 Current ${fieldName}: ${currentValue ?? 'None'}\n\nEnter new value or type "skip" to keep current:`;
 }

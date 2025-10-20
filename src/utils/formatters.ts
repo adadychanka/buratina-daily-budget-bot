@@ -1,3 +1,4 @@
+import { format } from 'date-fns';
 import type { ReportData } from '../types/bot';
 
 // Format currency amounts
@@ -12,13 +13,7 @@ export function formatAmount(amount: number): string {
 
 // Format date
 export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('sr-RS', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
+  return format(date, 'dd.MM.yyyy HH:mm');
 }
 
 // Format report summary for display
@@ -32,6 +27,8 @@ export function formatReportSummary(reportData: ReportData): string {
 
   return `
 📊 Report Summary:
+
+📅 Report Date: ${formatDateWithRelative(reportData.reportDate)}
 
 💰 Cash: ${formatAmount(reportData.cashAmount)}
 💳 White Cash: ${formatAmount(reportData.whiteCashAmount)}
@@ -56,7 +53,7 @@ export function formatReportHistory(reports: ReportData[]): string {
 
   const reportsText = reports
     .map((report, index) => {
-      const date = new Date().toLocaleDateString('sr-RS');
+      const date = format(report.reportDate, 'dd.MM.yyyy');
       return `${index + 1}. ${date} - ${formatAmount(report.totalSales)}`;
     })
     .join('\n');
@@ -74,7 +71,7 @@ export function formatReportForSheets(reportData: ReportData): string[] {
   const totalExpenses = reportData.expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
   return [
-    new Date().toISOString().split('T')[0], // Date
+    format(reportData.reportDate, 'yyyy-MM-dd'), // Date
     reportData.totalSales.toString(), // Total Sales
     reportData.cashAmount.toString(), // Cash Amount
     reportData.whiteCashAmount.toString(), // White Cash
@@ -103,9 +100,36 @@ export function formatError(error: unknown): string {
 
 // Format time
 export function formatTime(date: Date): string {
-  return new Intl.DateTimeFormat('sr-RS', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(date);
+  return format(date, 'HH:mm:ss');
+}
+
+// Format date for display (date only)
+export function formatDateForDisplay(date: Date): string {
+  return format(date, 'dd.MM.yyyy');
+}
+
+// Format relative date description
+export function formatRelativeDate(daysAgo: number): string {
+  switch (daysAgo) {
+    case 0:
+      return 'Today';
+    case 1:
+      return 'Yesterday';
+    case 2:
+      return '2 days ago';
+    default:
+      return `${daysAgo} days ago`;
+  }
+}
+
+// Format date with relative description
+export function formatDateWithRelative(date: Date): string {
+  const today = new Date();
+  const diffTime = today.getTime() - date.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  const dateStr = formatDateForDisplay(date);
+  const relativeStr = formatRelativeDate(diffDays);
+
+  return `${dateStr} (${relativeStr})`;
 }

@@ -1,8 +1,7 @@
 import { logger } from '../../../../config/logger';
-import type { BotContext, ReportData } from '../../../../types/bot';
+import type { BotContext } from '../../../../types/bot';
 import { MESSAGES, PROMPTS, REPORT_STEPS } from '../../../../utils/constants';
-import { formatAmount, formatReportSummary } from '../../../../utils/formatters';
-import { updateTotalSales } from '../helpers/calculationHelpers';
+import { formatAmount, formatDateForDisplay } from '../../../../utils/formatters';
 import { getEditingField, isEditMode, setEditingField } from '../helpers/editHelpers';
 import {
   addExpense,
@@ -15,7 +14,7 @@ import {
   startExpenseCollection,
 } from '../helpers/expenseHelpers';
 import {
-  getConfirmationKeyboard,
+  getDateSelectionKeyboard,
   getEditFieldsKeyboard,
   getWeekdayKeyboard,
 } from '../helpers/messageHelpers';
@@ -179,19 +178,14 @@ export async function handleNotes(ctx: BotContext, userInput: string) {
   if (ctx.session.reportData) {
     ctx.session.reportData.notes = validation.value;
   }
-  ctx.session.step = REPORT_STEPS.CONFIRMATION;
+  ctx.session.step = REPORT_STEPS.REPORT_DATE;
 
-  // Calculate and store total sales
-  updateTotalSales(ctx);
-
-  // Show full summary
-  const summary = formatReportSummary(ctx.session.reportData as ReportData);
   await ctx.reply(
-    `${validation.value ? `✅ Notes saved\n\n` : ''}${summary}\n\nPlease confirm your report:`,
-    getConfirmationKeyboard()
+    `${validation.value ? `✅ Notes saved\n\n` : ''}${PROMPTS.REPORT_DATE}`,
+    getDateSelectionKeyboard()
   );
 
-  logger.info(`User ${ctx.from?.id} entered notes and reached confirmation`);
+  logger.info(`User ${ctx.from?.id} entered notes and reached date selection`);
 }
 
 /**
@@ -299,6 +293,9 @@ async function handleEditFieldInput(ctx: BotContext, userInput: string) {
       break;
     case 'expenses':
       await handleEditExpensesInput(ctx, userInput);
+      break;
+    case 'reportDate':
+      await handleEditReportDateInput(ctx, userInput);
       break;
     default:
       await ctx.reply(MESSAGES.INVALID_INPUT);
@@ -497,6 +494,15 @@ async function handleEditExpensesInput(ctx: BotContext, userInput: string) {
   }
 }
 
+async function handleEditReportDateInput(ctx: BotContext, userInput: string) {
+  // Date editing should only be done via callbacks, not text input
+  await ctx.reply('Please select a date using the buttons below.');
+  await ctx.reply(
+    `Current date: ${ctx.session.reportData?.reportDate ? formatDateForDisplay(ctx.session.reportData.reportDate) : 'None'}\n\nSelect new date:`,
+    getDateSelectionKeyboard()
+  );
+}
+
 /**
  * Main text handler dispatcher
  */
@@ -540,6 +546,11 @@ export async function handleTextInput(ctx: BotContext, userInput: string) {
       break;
     case REPORT_STEPS.NOTES:
       await handleNotes(ctx, userInput);
+      break;
+    case REPORT_STEPS.REPORT_DATE:
+      // Date selection should only be handled via callbacks, not text input
+      await ctx.reply('Please select a date using the buttons above.');
+      await ctx.reply(PROMPTS.REPORT_DATE, getDateSelectionKeyboard());
       break;
     default:
       await ctx.reply(MESSAGES.INVALID_INPUT);

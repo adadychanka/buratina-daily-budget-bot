@@ -1,7 +1,8 @@
 import { Markup } from 'telegraf';
 import type { ReportData } from '../../../../types/bot';
 import { BUTTONS, CALLBACKS, EDIT_BUTTONS, EDIT_CALLBACKS } from '../../../../utils/constants';
-import { formatAmount } from '../../../../utils/formatters';
+import { formatAmount, formatDateForDisplay } from '../../../../utils/formatters';
+import { getDateKeyboard } from './dateHelpers';
 
 /**
  * Get weekday selection keyboard
@@ -35,6 +36,13 @@ export function getConfirmationKeyboard() {
     ],
     [Markup.button.callback(BUTTONS.CANCEL, CALLBACKS.CANCEL_REPORT)],
   ]);
+}
+
+/**
+ * Get date selection keyboard
+ */
+export function getDateSelectionKeyboard() {
+  return getDateKeyboard();
 }
 
 /**
@@ -99,6 +107,13 @@ export function getEditFieldsKeyboard(reportData: Partial<ReportData>) {
     Markup.button.callback(
       `${EDIT_BUTTONS.NOTES} ${reportData.notes ? '(set)' : '(none)'}`,
       EDIT_CALLBACKS.EDIT_NOTES
+    ),
+  ]);
+
+  buttons.push([
+    Markup.button.callback(
+      `${EDIT_BUTTONS.REPORT_DATE} (${reportData.reportDate ? formatDateForDisplay(reportData.reportDate) : 'None'})`,
+      EDIT_CALLBACKS.EDIT_REPORT_DATE
     ),
   ]);
 

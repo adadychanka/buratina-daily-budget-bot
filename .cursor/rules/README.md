@@ -25,6 +25,7 @@ This directory contains modular Cursor AI rules for the Daily Budget Bot project
 - **04-validation-patterns.mdc** - Zod validation patterns
 - **05-logging-standards.mdc** - Winston logging standards
 - **15-inline-keyboard-patterns.mdc** - Telegram inline keyboard best practices
+- **16-date-formatting-with-date-fns.mdc** - Date formatting with date-fns library
 
 ### Integration & Tools (Priority 4)
 
