@@ -23,6 +23,7 @@ export interface ReportData {
   expenses: Expense[];
   cashboxAmount: number;
   notes?: string;
+  reportDate: Date;
   totalSales: number;
 }
 

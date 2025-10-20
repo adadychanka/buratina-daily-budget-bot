@@ -7,8 +7,13 @@ import {
   PROMPTS,
   REPORT_STEPS,
 } from '../../../../utils/constants';
-import { formatAmount, formatReportSummary } from '../../../../utils/formatters';
+import {
+  formatAmount,
+  formatDateForDisplay,
+  formatReportSummary,
+} from '../../../../utils/formatters';
 import { updateTotalSales } from '../helpers/calculationHelpers';
+import { getDateFromCallback } from '../helpers/dateHelpers';
 import {
   exitEditMode,
   formatCurrentValueMessage,
@@ -24,10 +29,66 @@ import {
 } from '../helpers/expenseHelpers';
 import {
   getConfirmationKeyboard,
+  getDateSelectionKeyboard,
   getEditFieldsKeyboard,
   getWeekdayFromCallback,
   getWeekdayKeyboard,
 } from '../helpers/messageHelpers';
+
+/**
+ * Handle date selection for report date
+ */
+export async function handleDateSelection(ctx: BotContext, callbackData: string) {
+  const selectedDate = getDateFromCallback(callbackData);
+
+  if (!selectedDate) {
+    await ctx.answerCbQuery('Invalid date selection');
+    return;
+  }
+
+  // Check if in edit mode
+  const editingField = getEditingField(ctx);
+  if (editingField === 'reportDate') {
+    // In edit mode - return to field selection
+    if (ctx.session.reportData) {
+      ctx.session.reportData.reportDate = selectedDate;
+    }
+
+    await ctx.answerCbQuery();
+    await ctx.editMessageText(
+      `✅ Report date updated: ${formatDateForDisplay(selectedDate)}\n\n` +
+        'Select another field to edit or finish:',
+      getEditFieldsKeyboard(ctx.session.reportData ?? {})
+    );
+
+    setEditingField(ctx, undefined);
+    logger.info(
+      `User ${ctx.from?.id} updated report date to ${formatDateForDisplay(selectedDate)}`
+    );
+  } else {
+    // Normal flow - continue to confirmation
+    if (ctx.session.reportData) {
+      ctx.session.reportData.reportDate = selectedDate;
+    }
+    ctx.session.step = REPORT_STEPS.CONFIRMATION;
+
+    // Calculate and store total sales
+    updateTotalSales(ctx);
+
+    await ctx.answerCbQuery();
+    await ctx.editMessageText(
+      `✅ Report date saved: ${formatDateForDisplay(selectedDate)}\n\n` +
+        'Please confirm your report:',
+      getConfirmationKeyboard()
+    );
+
+    // Show full summary
+    const summary = formatReportSummary(ctx.session.reportData as ReportData);
+    await ctx.reply(summary);
+
+    logger.info(`User ${ctx.from?.id} selected report date: ${formatDateForDisplay(selectedDate)}`);
+  }
+}
 
 /**
  * Handle weekday selection for black cash location
@@ -285,6 +346,20 @@ export async function handleEditNotes(ctx: BotContext) {
 }
 
 /**
+ * Handle editing report date
+ */
+export async function handleEditReportDate(ctx: BotContext) {
+  await ctx.answerCbQuery();
+  setEditingField(ctx, 'reportDate');
+
+  const currentValue = ctx.session.reportData?.reportDate;
+  await ctx.editMessageText(
+    `Current date: ${currentValue ? formatDateForDisplay(currentValue) : 'None'}\n\nSelect new date:`,
+    getDateSelectionKeyboard()
+  );
+}
+
+/**
  * Handle done editing
  */
 export async function handleDoneEditing(ctx: BotContext) {
@@ -336,6 +411,12 @@ export async function handleCallbackQuery(ctx: BotContext) {
     // Weekday callbacks
     if (callbackData.startsWith('weekday_')) {
       await handleWeekdaySelection(ctx, callbackData);
+      return;
+    }
+
+    // Date callbacks
+    if (callbackData.startsWith('date_')) {
+      await handleDateSelection(ctx, callbackData);
       return;
     }
 
@@ -393,6 +474,9 @@ export async function handleCallbackQuery(ctx: BotContext) {
           break;
         case EDIT_CALLBACKS.EDIT_NOTES:
           await handleEditNotes(ctx);
+          break;
+        case EDIT_CALLBACKS.EDIT_REPORT_DATE:
+          await handleEditReportDate(ctx);
           break;
         default:
           await ctx.answerCbQuery('Unknown edit action');
