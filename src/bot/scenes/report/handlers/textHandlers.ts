@@ -501,15 +501,8 @@ async function handleEditExpensesInput(ctx: BotContext, userInput: string) {
  * Main text handler dispatcher
  */
 export async function handleTextInput(ctx: BotContext, userInput: string) {
-  // Check if in edit mode
-  if (isEditMode(ctx)) {
-    await handleEditFieldInput(ctx, userInput);
-    return;
-  }
-
-  const currentStep = ctx.session?.step;
-
-  // Check if collecting expense sub-flow
+  // Check if collecting expense sub-flow (MUST be checked before edit mode)
+  // This allows expense collection to work both in normal flow and edit mode
   if (isCollectingExpenseAmount(ctx)) {
     await handleExpenseAmount(ctx, userInput);
     return;
@@ -519,6 +512,14 @@ export async function handleTextInput(ctx: BotContext, userInput: string) {
     await handleExpenseDescription(ctx, userInput);
     return;
   }
+
+  // Check if in edit mode
+  if (isEditMode(ctx)) {
+    await handleEditFieldInput(ctx, userInput);
+    return;
+  }
+
+  const currentStep = ctx.session?.step;
 
   // Main FSM flow
   switch (currentStep) {
