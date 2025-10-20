@@ -75,16 +75,14 @@ export async function handleDateSelection(ctx: BotContext, callbackData: string)
     // Calculate and store total sales
     updateTotalSales(ctx);
 
+    // Show full summary with confirmation buttons
+    const summary = formatReportSummary(ctx.session.reportData as ReportData);
+
     await ctx.answerCbQuery();
     await ctx.editMessageText(
-      `✅ Report date saved: ${formatDateForDisplay(selectedDate)}\n\n` +
-        'Please confirm your report:',
+      `${summary}\n\nPlease confirm your report:`,
       getConfirmationKeyboard()
     );
-
-    // Show full summary
-    const summary = formatReportSummary(ctx.session.reportData as ReportData);
-    await ctx.reply(summary);
 
     logger.info(`User ${ctx.from?.id} selected report date: ${formatDateForDisplay(selectedDate)}`);
   }
