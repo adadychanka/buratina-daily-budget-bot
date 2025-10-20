@@ -1,13 +1,33 @@
 import { logger } from '../../../../config/logger';
-import type { BotContext } from '../../../../types/bot';
-import { CALLBACKS, MESSAGES, PROMPTS, REPORT_STEPS } from '../../../../utils/constants';
-import { formatAmount } from '../../../../utils/formatters';
+import type { BotContext, ReportData } from '../../../../types/bot';
+import {
+  CALLBACKS,
+  EDIT_CALLBACKS,
+  MESSAGES,
+  PROMPTS,
+  REPORT_STEPS,
+} from '../../../../utils/constants';
+import { formatAmount, formatReportSummary } from '../../../../utils/formatters';
+import { updateTotalSales } from '../helpers/calculationHelpers';
+import {
+  exitEditMode,
+  formatCurrentValueMessage,
+  getEditingField,
+  setEditingField,
+  startEditMode,
+} from '../helpers/editHelpers';
 import {
   clearExpenseCollection,
+  formatExpensesList,
   initializeExpenses,
   startExpenseCollection,
 } from '../helpers/expenseHelpers';
-import { getWeekdayFromCallback } from '../helpers/messageHelpers';
+import {
+  getConfirmationKeyboard,
+  getEditFieldsKeyboard,
+  getWeekdayFromCallback,
+  getWeekdayKeyboard,
+} from '../helpers/messageHelpers';
 
 /**
  * Handle weekday selection for black cash location
@@ -26,16 +46,32 @@ export async function handleWeekdaySelection(ctx: BotContext, callbackData: stri
   if (ctx.session.reportData) {
     ctx.session.reportData.blackCashLocation = weekday;
   }
-  ctx.session.step = REPORT_STEPS.CARD_SALES_AMOUNT;
 
-  await ctx.answerCbQuery();
-  await ctx.editMessageText(
-    `✅ Black Cash location saved\n\n🖤 Black Cash: ${formatAmount(blackCashAmount)}\n📍 Location: ${weekday}\n\n${PROMPTS.CARD_SALES_AMOUNT}`
-  );
+  // Check if in edit mode
+  const editingField = ctx.session.editingField;
+  if (editingField === 'blackCashLocation') {
+    // In edit mode - return to field selection
+    await ctx.answerCbQuery();
+    await ctx.editMessageText(
+      `✅ Black Cash location updated: ${weekday}\n\n` + 'Select another field to edit or finish:',
+      getEditFieldsKeyboard(ctx.session.reportData ?? {})
+    );
 
-  logger.info(
-    `User ${ctx.from?.id} selected black cash location: ${weekday} for amount: ${blackCashAmount}`
-  );
+    setEditingField(ctx, undefined);
+    logger.info(`User ${ctx.from?.id} updated black cash location to ${weekday}`);
+  } else {
+    // Normal flow - continue to next step
+    ctx.session.step = REPORT_STEPS.CARD_SALES_AMOUNT;
+
+    await ctx.answerCbQuery();
+    await ctx.editMessageText(
+      `✅ Black Cash location saved\n\n🖤 Black Cash: ${formatAmount(blackCashAmount)}\n📍 Location: ${weekday}\n\n${PROMPTS.CARD_SALES_AMOUNT}`
+    );
+
+    logger.info(
+      `User ${ctx.from?.id} selected black cash location: ${weekday} for amount: ${blackCashAmount}`
+    );
+  }
 }
 
 /**
@@ -81,12 +117,28 @@ export async function handleExpenseAnother(ctx: BotContext) {
  */
 export async function handleExpenseDone(ctx: BotContext) {
   clearExpenseCollection(ctx);
-  ctx.session.step = REPORT_STEPS.CASHBOX_AMOUNT;
 
-  await ctx.answerCbQuery();
-  await ctx.editMessageText(`✅ Expenses saved\n\n${PROMPTS.CASHBOX_AMOUNT}`);
+  // Check if in edit mode
+  const editingField = getEditingField(ctx);
+  if (editingField === 'expenses') {
+    // In edit mode - return to field selection
+    await ctx.answerCbQuery();
+    await ctx.editMessageText(
+      `✅ Expenses updated\n\n` + 'Select another field to edit or finish:',
+      getEditFieldsKeyboard(ctx.session.reportData ?? {})
+    );
 
-  logger.info(`User ${ctx.from?.id} finished adding expenses`);
+    setEditingField(ctx, undefined);
+    logger.info(`User ${ctx.from?.id} finished editing expenses`);
+  } else {
+    // Normal flow - continue to next step
+    ctx.session.step = REPORT_STEPS.CASHBOX_AMOUNT;
+
+    await ctx.answerCbQuery();
+    await ctx.editMessageText(`✅ Expenses saved\n\n${PROMPTS.CASHBOX_AMOUNT}`);
+
+    logger.info(`User ${ctx.from?.id} finished adding expenses`);
+  }
 }
 
 /**
@@ -108,12 +160,144 @@ export async function handleConfirmReport(ctx: BotContext) {
  * Handle "Edit Report" button
  */
 export async function handleEditReport(ctx: BotContext) {
-  await ctx.answerCbQuery('Edit feature coming soon!');
-  await ctx.reply(
-    '✏️ Edit feature is not yet implemented.\n\nFor now, please use /cancel to start over if you need to make changes.'
+  await ctx.answerCbQuery();
+
+  startEditMode(ctx);
+
+  await ctx.editMessageText(
+    '✏️ Select field to edit:',
+    getEditFieldsKeyboard(ctx.session.reportData ?? {})
   );
 
-  logger.info(`User ${ctx.from?.id} requested to edit report`);
+  logger.info(`User ${ctx.from?.id} entered edit mode`);
+}
+
+/**
+ * Handle editing cash amount
+ */
+export async function handleEditCash(ctx: BotContext) {
+  await ctx.answerCbQuery();
+  setEditingField(ctx, 'cashAmount');
+
+  const currentValue = ctx.session.reportData?.cashAmount;
+  await ctx.editMessageText(
+    formatCurrentValueMessage('Cash Amount', formatAmount(currentValue ?? 0))
+  );
+}
+
+/**
+ * Handle editing white cash amount
+ */
+export async function handleEditWhiteCash(ctx: BotContext) {
+  await ctx.answerCbQuery();
+  setEditingField(ctx, 'whiteCashAmount');
+
+  const currentValue = ctx.session.reportData?.whiteCashAmount;
+  await ctx.editMessageText(
+    formatCurrentValueMessage('White Cash Amount', formatAmount(currentValue ?? 0))
+  );
+}
+
+/**
+ * Handle editing black cash amount
+ */
+export async function handleEditBlackCash(ctx: BotContext) {
+  await ctx.answerCbQuery();
+  setEditingField(ctx, 'blackCashAmount');
+
+  const currentValue = ctx.session.reportData?.blackCashAmount;
+  await ctx.editMessageText(
+    formatCurrentValueMessage('Black Cash Amount', formatAmount(currentValue ?? 0))
+  );
+}
+
+/**
+ * Handle editing black cash location
+ */
+export async function handleEditBlackCashLocation(ctx: BotContext) {
+  await ctx.answerCbQuery();
+  setEditingField(ctx, 'blackCashLocation');
+
+  await ctx.editMessageText(
+    `Current location: ${ctx.session.reportData?.blackCashLocation || 'None'}\n\nSelect new weekday:`,
+    getWeekdayKeyboard()
+  );
+}
+
+/**
+ * Handle editing card sales amount
+ */
+export async function handleEditCardSales(ctx: BotContext) {
+  await ctx.answerCbQuery();
+  setEditingField(ctx, 'cardSalesAmount');
+
+  const currentValue = ctx.session.reportData?.cardSalesAmount;
+  await ctx.editMessageText(
+    formatCurrentValueMessage('Card Sales Amount', formatAmount(currentValue ?? 0))
+  );
+}
+
+/**
+ * Handle editing expenses
+ */
+export async function handleEditExpenses(ctx: BotContext) {
+  await ctx.answerCbQuery();
+  setEditingField(ctx, 'expenses');
+
+  const expenses = ctx.session.reportData?.expenses || [];
+  const expensesList = expenses.length > 0 ? formatExpensesList(ctx) : 'No expenses yet';
+
+  await ctx.editMessageText(
+    `Current expenses:\n${expensesList}\n\n` +
+      '⚠️ Editing expenses will let you add more.\n' +
+      'Type "clear" to remove all expenses, or type "skip" to keep current expenses.'
+  );
+}
+
+/**
+ * Handle editing cashbox amount
+ */
+export async function handleEditCashbox(ctx: BotContext) {
+  await ctx.answerCbQuery();
+  setEditingField(ctx, 'cashboxAmount');
+
+  const currentValue = ctx.session.reportData?.cashboxAmount;
+  await ctx.editMessageText(
+    formatCurrentValueMessage('Cashbox Amount', formatAmount(currentValue ?? 0))
+  );
+}
+
+/**
+ * Handle editing notes
+ */
+export async function handleEditNotes(ctx: BotContext) {
+  await ctx.answerCbQuery();
+  setEditingField(ctx, 'notes');
+
+  const currentValue = ctx.session.reportData?.notes;
+  await ctx.editMessageText(
+    formatCurrentValueMessage('Notes', currentValue || 'None') + '\n\nType "clear" to remove notes.'
+  );
+}
+
+/**
+ * Handle done editing
+ */
+export async function handleDoneEditing(ctx: BotContext) {
+  await ctx.answerCbQuery();
+  exitEditMode(ctx);
+
+  // Recalculate total sales
+  updateTotalSales(ctx);
+
+  // Show updated summary
+  const summary = formatReportSummary(ctx.session.reportData as ReportData);
+  await ctx.editMessageText(
+    `${summary}\n\nPlease confirm your updated report:`,
+    getConfirmationKeyboard()
+  );
+
+  logger.info(`User ${ctx.from?.id} finished editing`);
 }
 
 /**
@@ -151,7 +335,41 @@ export async function handleCallbackQuery(ctx: BotContext) {
       return;
     }
 
-    // Expense callbacks
+    // Edit mode callbacks
+    if (callbackData.startsWith('edit_')) {
+      switch (callbackData) {
+        case EDIT_CALLBACKS.EDIT_CASH:
+          await handleEditCash(ctx);
+          break;
+        case EDIT_CALLBACKS.EDIT_WHITE_CASH:
+          await handleEditWhiteCash(ctx);
+          break;
+        case EDIT_CALLBACKS.EDIT_BLACK_CASH:
+          await handleEditBlackCash(ctx);
+          break;
+        case EDIT_CALLBACKS.EDIT_BLACK_CASH_LOCATION:
+          await handleEditBlackCashLocation(ctx);
+          break;
+        case EDIT_CALLBACKS.EDIT_CARD_SALES:
+          await handleEditCardSales(ctx);
+          break;
+        case EDIT_CALLBACKS.EDIT_EXPENSES:
+          await handleEditExpenses(ctx);
+          break;
+        case EDIT_CALLBACKS.EDIT_CASHBOX:
+          await handleEditCashbox(ctx);
+          break;
+        case EDIT_CALLBACKS.EDIT_NOTES:
+          await handleEditNotes(ctx);
+          break;
+        default:
+          await ctx.answerCbQuery('Unknown edit action');
+          logger.warn(`Unknown edit callback data: ${callbackData}`);
+      }
+      return;
+    }
+
+    // Expense and confirmation callbacks
     switch (callbackData) {
       case CALLBACKS.EXPENSE_ADD:
         await handleExpenseAdd(ctx);
@@ -173,6 +391,9 @@ export async function handleCallbackQuery(ctx: BotContext) {
         break;
       case CALLBACKS.CANCEL_REPORT:
         await handleCancelReport(ctx);
+        break;
+      case EDIT_CALLBACKS.DONE_EDITING:
+        await handleDoneEditing(ctx);
         break;
       default:
         await ctx.answerCbQuery('Unknown action');

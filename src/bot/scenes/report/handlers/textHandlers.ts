@@ -3,15 +3,22 @@ import type { BotContext, ReportData } from '../../../../types/bot';
 import { MESSAGES, PROMPTS, REPORT_STEPS } from '../../../../utils/constants';
 import { formatAmount, formatReportSummary } from '../../../../utils/formatters';
 import { updateTotalSales } from '../helpers/calculationHelpers';
+import { getEditingField, isEditMode, setEditingField } from '../helpers/editHelpers';
 import {
   addExpense,
   clearExpenseCollection,
   formatExpensesList,
   getExpenseNextKeyboard,
+  initializeExpenses,
   isCollectingExpenseAmount,
   isCollectingExpenseDescription,
+  startExpenseCollection,
 } from '../helpers/expenseHelpers';
-import { getConfirmationKeyboard, getWeekdayKeyboard } from '../helpers/messageHelpers';
+import {
+  getConfirmationKeyboard,
+  getEditFieldsKeyboard,
+  getWeekdayKeyboard,
+} from '../helpers/messageHelpers';
 import {
   validateAmountWithPrompt,
   validateOptionalTextWithPrompt,
@@ -242,9 +249,264 @@ export async function handleExpenseDescription(ctx: BotContext, userInput: strin
 }
 
 /**
+ * Return to field selection menu
+ */
+async function returnToFieldSelection(ctx: BotContext) {
+  setEditingField(ctx, undefined);
+
+  await ctx.reply(
+    '✏️ Select another field to edit or finish:',
+    getEditFieldsKeyboard(ctx.session.reportData ?? {})
+  );
+}
+
+/**
+ * Handle editing field input
+ */
+async function handleEditFieldInput(ctx: BotContext, userInput: string) {
+  const field = getEditingField(ctx);
+
+  if (!field) {
+    await ctx.reply('Error: No field selected for editing');
+    return;
+  }
+
+  // Handle "skip" to keep current value
+  if (userInput.toLowerCase().trim() === 'skip') {
+    await returnToFieldSelection(ctx);
+    return;
+  }
+
+  // Validate and update based on field type
+  switch (field) {
+    case 'cashAmount':
+      await handleEditCashAmountInput(ctx, userInput);
+      break;
+    case 'whiteCashAmount':
+      await handleEditWhiteCashAmountInput(ctx, userInput);
+      break;
+    case 'blackCashAmount':
+      await handleEditBlackCashAmountInput(ctx, userInput);
+      break;
+    case 'cardSalesAmount':
+      await handleEditCardSalesInput(ctx, userInput);
+      break;
+    case 'cashboxAmount':
+      await handleEditCashboxInput(ctx, userInput);
+      break;
+    case 'notes':
+      await handleEditNotesInput(ctx, userInput);
+      break;
+    case 'expenses':
+      await handleEditExpensesInput(ctx, userInput);
+      break;
+    default:
+      await ctx.reply(MESSAGES.INVALID_INPUT);
+  }
+}
+
+/**
+ * Edit handlers for each field
+ */
+async function handleEditCashAmountInput(ctx: BotContext, userInput: string) {
+  const validation = validateAmountWithPrompt(userInput);
+
+  if (!validation.isValid) {
+    if (validation.errorMessage) {
+      await ctx.reply(validation.errorMessage);
+    }
+    return;
+  }
+
+  if (ctx.session.reportData) {
+    ctx.session.reportData.cashAmount = validation.value;
+  }
+
+  await ctx.reply(
+    `✅ Cash Amount updated: ${formatAmount(validation.value)}\n\n` +
+      'Select another field to edit or finish:',
+    getEditFieldsKeyboard(ctx.session.reportData ?? {})
+  );
+
+  setEditingField(ctx, undefined);
+  logger.info(`User ${ctx.from?.id} updated cash amount to ${validation.value}`);
+}
+
+async function handleEditWhiteCashAmountInput(ctx: BotContext, userInput: string) {
+  const validation = validateAmountWithPrompt(userInput);
+
+  if (!validation.isValid) {
+    if (validation.errorMessage) {
+      await ctx.reply(validation.errorMessage);
+    }
+    return;
+  }
+
+  if (ctx.session.reportData) {
+    ctx.session.reportData.whiteCashAmount = validation.value;
+  }
+
+  await ctx.reply(
+    `✅ White Cash Amount updated: ${formatAmount(validation.value)}\n\n` +
+      'Select another field to edit or finish:',
+    getEditFieldsKeyboard(ctx.session.reportData ?? {})
+  );
+
+  setEditingField(ctx, undefined);
+  logger.info(`User ${ctx.from?.id} updated white cash amount to ${validation.value}`);
+}
+
+async function handleEditBlackCashAmountInput(ctx: BotContext, userInput: string) {
+  const validation = validateAmountWithPrompt(userInput);
+
+  if (!validation.isValid) {
+    if (validation.errorMessage) {
+      await ctx.reply(validation.errorMessage);
+    }
+    return;
+  }
+
+  if (ctx.session.reportData) {
+    ctx.session.reportData.blackCashAmount = validation.value;
+
+    // If black cash is 0 or less, clear the location
+    if (validation.value === 0) {
+      ctx.session.reportData.blackCashLocation = undefined;
+    }
+  }
+
+  await ctx.reply(
+    `✅ Black Cash Amount updated: ${formatAmount(validation.value)}\n\n` +
+      'Select another field to edit or finish:',
+    getEditFieldsKeyboard(ctx.session.reportData ?? {})
+  );
+
+  setEditingField(ctx, undefined);
+  logger.info(`User ${ctx.from?.id} updated black cash amount to ${validation.value}`);
+}
+
+async function handleEditCardSalesInput(ctx: BotContext, userInput: string) {
+  const validation = validateAmountWithPrompt(userInput);
+
+  if (!validation.isValid) {
+    if (validation.errorMessage) {
+      await ctx.reply(validation.errorMessage);
+    }
+    return;
+  }
+
+  if (ctx.session.reportData) {
+    ctx.session.reportData.cardSalesAmount = validation.value;
+  }
+
+  await ctx.reply(
+    `✅ Card Sales Amount updated: ${formatAmount(validation.value)}\n\n` +
+      'Select another field to edit or finish:',
+    getEditFieldsKeyboard(ctx.session.reportData ?? {})
+  );
+
+  setEditingField(ctx, undefined);
+  logger.info(`User ${ctx.from?.id} updated card sales amount to ${validation.value}`);
+}
+
+async function handleEditCashboxInput(ctx: BotContext, userInput: string) {
+  const validation = validateAmountWithPrompt(userInput);
+
+  if (!validation.isValid) {
+    if (validation.errorMessage) {
+      await ctx.reply(validation.errorMessage);
+    }
+    return;
+  }
+
+  if (ctx.session.reportData) {
+    ctx.session.reportData.cashboxAmount = validation.value;
+  }
+
+  await ctx.reply(
+    `✅ Cashbox Amount updated: ${formatAmount(validation.value)}\n\n` +
+      'Select another field to edit or finish:',
+    getEditFieldsKeyboard(ctx.session.reportData ?? {})
+  );
+
+  setEditingField(ctx, undefined);
+  logger.info(`User ${ctx.from?.id} updated cashbox amount to ${validation.value}`);
+}
+
+async function handleEditNotesInput(ctx: BotContext, userInput: string) {
+  const trimmedInput = userInput.toLowerCase().trim();
+
+  if (trimmedInput === 'clear') {
+    if (ctx.session.reportData) {
+      ctx.session.reportData.notes = undefined;
+    }
+
+    await ctx.reply(
+      '✅ Notes cleared\n\n' + 'Select another field to edit or finish:',
+      getEditFieldsKeyboard(ctx.session.reportData ?? {})
+    );
+  } else {
+    const validation = validateOptionalTextWithPrompt(userInput);
+
+    if (!validation.isValid) {
+      if (validation.errorMessage) {
+        await ctx.reply(validation.errorMessage);
+      }
+      return;
+    }
+
+    if (ctx.session.reportData) {
+      ctx.session.reportData.notes = validation.value;
+    }
+
+    await ctx.reply(
+      `✅ Notes updated: ${validation.value || 'None'}\n\n` +
+        'Select another field to edit or finish:',
+      getEditFieldsKeyboard(ctx.session.reportData ?? {})
+    );
+  }
+
+  setEditingField(ctx, undefined);
+  logger.info(`User ${ctx.from?.id} updated notes`);
+}
+
+async function handleEditExpensesInput(ctx: BotContext, userInput: string) {
+  const trimmedInput = userInput.toLowerCase().trim();
+
+  if (trimmedInput === 'clear') {
+    if (ctx.session.reportData) {
+      ctx.session.reportData.expenses = [];
+      initializeExpenses(ctx);
+    }
+
+    await ctx.reply(
+      '✅ All expenses cleared\n\n' + 'Select another field to edit or finish:',
+      getEditFieldsKeyboard(ctx.session.reportData ?? {})
+    );
+
+    setEditingField(ctx, undefined);
+    logger.info(`User ${ctx.from?.id} cleared all expenses`);
+  } else if (trimmedInput === 'skip') {
+    await returnToFieldSelection(ctx);
+  } else {
+    // Start adding expenses
+    initializeExpenses(ctx);
+    startExpenseCollection(ctx);
+    await ctx.reply(PROMPTS.EXPENSE_AMOUNT);
+    logger.info(`User ${ctx.from?.id} started adding expenses in edit mode`);
+  }
+}
+
+/**
  * Main text handler dispatcher
  */
 export async function handleTextInput(ctx: BotContext, userInput: string) {
+  // Check if in edit mode
+  if (isEditMode(ctx)) {
+    await handleEditFieldInput(ctx, userInput);
+    return;
+  }
+
   const currentStep = ctx.session?.step;
 
   // Check if collecting expense sub-flow

@@ -5,6 +5,8 @@ export interface SessionData extends Scenes.SceneSession {
   step?: string;
   collectingExpense?: boolean;
   currentExpenseAmount?: number;
+  editMode?: boolean;
+  editingField?: string;
 }
 
 export interface BotContext extends Context {

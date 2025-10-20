@@ -135,3 +135,33 @@ export const DATABASE = {
     MAX_HISTORY_DISPLAY: 10,
   },
 } as const;
+
+// Edit mode constants
+export const EDIT_MODE = {
+  FIELD_SELECTION: 'editFieldSelection',
+  EDITING_FIELD: 'editingField',
+} as const;
+
+export const EDIT_CALLBACKS = {
+  EDIT_CASH: 'edit_cash',
+  EDIT_WHITE_CASH: 'edit_white_cash',
+  EDIT_BLACK_CASH: 'edit_black_cash',
+  EDIT_BLACK_CASH_LOCATION: 'edit_black_cash_location',
+  EDIT_CARD_SALES: 'edit_card_sales',
+  EDIT_EXPENSES: 'edit_expenses',
+  EDIT_CASHBOX: 'edit_cashbox',
+  EDIT_NOTES: 'edit_notes',
+  DONE_EDITING: 'done_editing',
+} as const;
+
+export const EDIT_BUTTONS = {
+  CASH: '💰 Cash',
+  WHITE_CASH: '💳 White Cash',
+  BLACK_CASH: '🖤 Black Cash',
+  BLACK_CASH_LOCATION: '📍 Black Cash Location',
+  CARD_SALES: '💳 Card Sales',
+  EXPENSES: '📦 Expenses',
+  CASHBOX: '💰 Cashbox',
+  NOTES: '📝 Notes',
+  DONE_EDITING: '✅ Done Editing',
+} as const;
