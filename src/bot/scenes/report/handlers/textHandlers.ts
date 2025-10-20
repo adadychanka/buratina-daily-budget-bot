@@ -2,12 +2,12 @@ import { logger } from '../../../../config/logger';
 import type { BotContext, ReportData } from '../../../../types/bot';
 import { MESSAGES, PROMPTS, REPORT_STEPS } from '../../../../utils/constants';
 import { formatAmount, formatReportSummary } from '../../../../utils/formatters';
+import { updateTotalSales } from '../helpers/calculationHelpers';
 import {
   addExpense,
   clearExpenseCollection,
   formatExpensesList,
   getExpenseNextKeyboard,
-  getTotalExpenses,
   isCollectingExpenseAmount,
   isCollectingExpenseDescription,
 } from '../helpers/expenseHelpers';
@@ -174,19 +174,8 @@ export async function handleNotes(ctx: BotContext, userInput: string) {
   }
   ctx.session.step = REPORT_STEPS.CONFIRMATION;
 
-  // Calculate total sales
-  const reportData = ctx.session.reportData;
-  const cashAmount = reportData?.cashAmount ?? 0;
-  const whiteCashAmount = reportData?.whiteCashAmount ?? 0;
-  const blackCashAmount = reportData?.blackCashAmount ?? 0;
-  const cardSalesAmount = reportData?.cardSalesAmount ?? 0;
-  const totalExpenses = getTotalExpenses(ctx);
-
-  const totalSales =
-    cashAmount + whiteCashAmount + blackCashAmount + cardSalesAmount - totalExpenses;
-  if (ctx.session.reportData) {
-    ctx.session.reportData.totalSales = totalSales;
-  }
+  // Calculate and store total sales
+  updateTotalSales(ctx);
 
   // Show full summary
   const summary = formatReportSummary(ctx.session.reportData as ReportData);
