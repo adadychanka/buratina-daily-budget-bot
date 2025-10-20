@@ -34,15 +34,15 @@ export async function handleCashAmount(ctx: BotContext, userInput: string) {
   if (!ctx.session.reportData) {
     ctx.session.reportData = {};
   }
-  ctx.session.reportData.cashAmount = validation.amount;
+  ctx.session.reportData.cashAmount = validation.value;
   ctx.session.step = REPORT_STEPS.WHITE_CASH_AMOUNT;
 
   await ctx.reply(
-    `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.amount ?? 0)}\n\n${
+    `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.value ?? 0)}\n\n${
       PROMPTS.WHITE_CASH_AMOUNT
     }`
   );
-  logger.info(`User ${ctx.from?.id} entered cash amount: ${validation.amount}`);
+  logger.info(`User ${ctx.from?.id} entered cash amount: ${validation.value}`);
 }
 
 /**
@@ -59,16 +59,16 @@ export async function handleWhiteCashAmount(ctx: BotContext, userInput: string) 
   }
 
   if (ctx.session.reportData) {
-    ctx.session.reportData.whiteCashAmount = validation.amount;
+    ctx.session.reportData.whiteCashAmount = validation.value;
   }
   ctx.session.step = REPORT_STEPS.BLACK_CASH_AMOUNT;
 
   await ctx.reply(
-    `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.amount ?? 0)}\n\n${
+    `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.value ?? 0)}\n\n${
       PROMPTS.BLACK_CASH_AMOUNT
     }`
   );
-  logger.info(`User ${ctx.from?.id} entered white cash amount: ${validation.amount}`);
+  logger.info(`User ${ctx.from?.id} entered white cash amount: ${validation.value}`);
 }
 
 /**
@@ -85,14 +85,14 @@ export async function handleBlackCashAmount(ctx: BotContext, userInput: string) 
   }
 
   if (ctx.session.reportData) {
-    ctx.session.reportData.blackCashAmount = validation.amount;
+    ctx.session.reportData.blackCashAmount = validation.value;
   }
 
   // If black cash > 0, ask for location; otherwise skip to card sales
-  if (validation.amount && validation.amount > 0) {
+  if (validation.value && validation.value > 0) {
     ctx.session.step = REPORT_STEPS.BLACK_CASH_LOCATION;
     await ctx.reply(
-      `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.amount)}\n\n${
+      `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.value)}\n\n${
         PROMPTS.BLACK_CASH_LOCATION
       }`,
       getWeekdayKeyboard()
@@ -100,13 +100,13 @@ export async function handleBlackCashAmount(ctx: BotContext, userInput: string) 
   } else {
     ctx.session.step = REPORT_STEPS.CARD_SALES_AMOUNT;
     await ctx.reply(
-      `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.amount ?? 0)}\n\n${
+      `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.value ?? 0)}\n\n${
         PROMPTS.CARD_SALES_AMOUNT
       }`
     );
   }
 
-  logger.info(`User ${ctx.from?.id} entered black cash amount: ${validation.amount}`);
+  logger.info(`User ${ctx.from?.id} entered black cash amount: ${validation.value}`);
 }
 
 /**
@@ -123,7 +123,7 @@ export async function handleCardSalesAmount(ctx: BotContext, userInput: string) 
   }
 
   if (ctx.session.reportData) {
-    ctx.session.reportData.cardSalesAmount = validation.amount;
+    ctx.session.reportData.cardSalesAmount = validation.value;
   }
   ctx.session.step = REPORT_STEPS.EXPENSES;
 
@@ -131,12 +131,12 @@ export async function handleCardSalesAmount(ctx: BotContext, userInput: string) 
   const { getExpenseInitialKeyboard } = await import('../helpers/expenseHelpers');
 
   await ctx.reply(
-    `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.amount ?? 0)}\n\n${
+    `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.value ?? 0)}\n\n${
       PROMPTS.EXPENSES_QUESTION
     }`,
     getExpenseInitialKeyboard()
   );
-  logger.info(`User ${ctx.from?.id} entered card sales amount: ${validation.amount}`);
+  logger.info(`User ${ctx.from?.id} entered card sales amount: ${validation.value}`);
 }
 
 /**
@@ -153,14 +153,14 @@ export async function handleCashboxAmount(ctx: BotContext, userInput: string) {
   }
 
   if (ctx.session.reportData) {
-    ctx.session.reportData.cashboxAmount = validation.amount;
+    ctx.session.reportData.cashboxAmount = validation.value;
   }
   ctx.session.step = REPORT_STEPS.NOTES;
 
   await ctx.reply(
-    `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.amount ?? 0)}\n\n${PROMPTS.NOTES}`
+    `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.value ?? 0)}\n\n${PROMPTS.NOTES}`
   );
-  logger.info(`User ${ctx.from?.id} entered cashbox amount: ${validation.amount}`);
+  logger.info(`User ${ctx.from?.id} entered cashbox amount: ${validation.value}`);
 }
 
 /**
@@ -170,7 +170,7 @@ export async function handleNotes(ctx: BotContext, userInput: string) {
   const validation = validateOptionalTextWithPrompt(userInput);
 
   if (ctx.session.reportData) {
-    ctx.session.reportData.notes = validation.text;
+    ctx.session.reportData.notes = validation.value;
   }
   ctx.session.step = REPORT_STEPS.CONFIRMATION;
 
@@ -191,7 +191,7 @@ export async function handleNotes(ctx: BotContext, userInput: string) {
   // Show full summary
   const summary = formatReportSummary(ctx.session.reportData as ReportData);
   await ctx.reply(
-    `${validation.text ? `✅ Notes saved\n\n` : ''}${summary}\n\nPlease confirm your report:`,
+    `${validation.value ? `✅ Notes saved\n\n` : ''}${summary}\n\nPlease confirm your report:`,
     getConfirmationKeyboard()
   );
 
@@ -211,13 +211,13 @@ export async function handleExpenseAmount(ctx: BotContext, userInput: string) {
     return;
   }
 
-  ctx.session.currentExpenseAmount = validation.amount;
+  ctx.session.currentExpenseAmount = validation.value;
   await ctx.reply(
-    `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.amount ?? 0)}\n\n${
+    `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.value ?? 0)}\n\n${
       PROMPTS.EXPENSE_DESCRIPTION
     }`
   );
-  logger.info(`User ${ctx.from?.id} entered expense amount: ${validation.amount}`);
+  logger.info(`User ${ctx.from?.id} entered expense amount: ${validation.value}`);
 }
 
 /**
@@ -234,7 +234,7 @@ export async function handleExpenseDescription(ctx: BotContext, userInput: strin
   }
 
   const amount = ctx.session.currentExpenseAmount;
-  const description = validation.text;
+  const description = validation.value;
 
   if (amount !== undefined && description) {
     // Add expense to the list
