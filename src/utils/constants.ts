@@ -50,18 +50,18 @@ export const MESSAGES = {
 
 // Report field prompts
 export const PROMPTS = {
-  CASH_AMOUNT: 'Enter Cash amount:',
-  WHITE_CASH_AMOUNT: 'Enter White Cash amount:',
-  BLACK_CASH_AMOUNT: 'Enter Black Cash amount:',
-  BLACK_CASH_LOCATION: 'Select the weekday when Black Cash was saved:',
-  CARD_SALES_AMOUNT: 'Enter Card sales amount:',
-  EXPENSES_QUESTION: 'Do you have any expenses to record?',
-  EXPENSE_AMOUNT: 'Enter expense amount:',
-  EXPENSE_DESCRIPTION: 'Enter expense description:',
-  CASHBOX_AMOUNT: 'Enter total amount in cashbox at end of shift:',
-  NOTES: 'Any additional notes? (Type message or /skip)',
-  INVALID_AMOUNT: 'Please enter a valid amount:',
-  INVALID_TEXT: 'Please enter valid text:',
+  CASH_AMOUNT: '💰 Enter Cash amount:',
+  WHITE_CASH_AMOUNT: '💳 Enter White Cash amount:',
+  BLACK_CASH_AMOUNT: '🖤 Enter Black Cash amount:',
+  BLACK_CASH_LOCATION: '📍 Select the weekday when Black Cash was saved:',
+  CARD_SALES_AMOUNT: '💳 Enter Card sales amount:',
+  EXPENSES_QUESTION: '📦 Do you have any expenses to record?',
+  EXPENSE_AMOUNT: '💸 Enter expense amount:',
+  EXPENSE_DESCRIPTION: '📝 Enter expense description:',
+  CASHBOX_AMOUNT: '🏦 Enter total amount in cashbox at end of shift:',
+  NOTES: '📄 Any additional notes? (Type message or /skip)',
+  INVALID_AMOUNT: '❌ Please enter a valid amount:',
+  INVALID_TEXT: '❌ Please enter valid text:',
 } as const;
 
 // Button labels
