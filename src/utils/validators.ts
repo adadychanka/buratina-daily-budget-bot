@@ -178,7 +178,11 @@ export function combineValidators<T>(
  * Validator builder for custom validation logic
  */
 export function createValidator<T>(
-  validationFn: (value: string) => { isValid: boolean; value?: T; error?: string }
+  validationFn: (value: string) => {
+    isValid: boolean;
+    value?: T;
+    error?: string;
+  }
 ): (value: string) => ValidationOutcome<T> {
   return (value: string) => {
     const result = validationFn(value);

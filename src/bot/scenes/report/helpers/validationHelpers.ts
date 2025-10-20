@@ -10,9 +10,7 @@ import { validateAmount, validateOptionalText, validateText } from '../../../../
 /**
  * Validate and return formatted error message for amounts
  */
-export function validateAmountWithPrompt(
-  value: string
-): AmountValidationResult & { errorMessage?: string } {
+export function validateAmountWithPrompt(value: string): AmountValidationResult {
   const validation = validateAmount(value);
 
   if (!validation.isValid) {
@@ -58,7 +56,7 @@ export function validateAmountInRange(
   value: string,
   min: number,
   max: number
-): AmountValidationResult & { errorMessage?: string } {
+): AmountValidationResult {
   const validation = validateAmount(value);
 
   if (!validation.isValid) {
@@ -86,7 +84,7 @@ export function validateTextWithMaxLength(
   value: string,
   minLength: number,
   maxLength: number
-): TextValidationResult & { errorMessage?: string } {
+): TextValidationResult {
   const text = value.trim();
 
   if (text.length < minLength) {
