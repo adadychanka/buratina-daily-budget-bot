@@ -1,6 +1,7 @@
 import { logger } from '../../../../config/logger';
 import type { BotContext } from '../../../../types/bot';
 import { CALLBACKS, MESSAGES, PROMPTS, REPORT_STEPS } from '../../../../utils/constants';
+import { formatAmount } from '../../../../utils/formatters';
 import {
   clearExpenseCollection,
   initializeExpenses,
@@ -19,6 +20,9 @@ export async function handleWeekdaySelection(ctx: BotContext, callbackData: stri
     return;
   }
 
+  // Get the black cash amount from session
+  const blackCashAmount = ctx.session.reportData?.blackCashAmount ?? 0;
+
   if (ctx.session.reportData) {
     ctx.session.reportData.blackCashLocation = weekday;
   }
@@ -26,10 +30,12 @@ export async function handleWeekdaySelection(ctx: BotContext, callbackData: stri
 
   await ctx.answerCbQuery();
   await ctx.editMessageText(
-    `✅ Black Cash location saved: ${weekday}\n\n${PROMPTS.CARD_SALES_AMOUNT}`
+    `✅ Black Cash location saved\n\n🖤 Black Cash: ${formatAmount(blackCashAmount)}\n📍 Location: ${weekday}\n\n${PROMPTS.CARD_SALES_AMOUNT}`
   );
 
-  logger.info(`User ${ctx.from?.id} selected black cash location: ${weekday}`);
+  logger.info(
+    `User ${ctx.from?.id} selected black cash location: ${weekday} for amount: ${blackCashAmount}`
+  );
 }
 
 /**
