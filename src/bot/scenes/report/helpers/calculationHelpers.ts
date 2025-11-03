@@ -30,6 +30,21 @@ export function calculateCashboxAmount(ctx: BotContext): number {
 }
 
 /**
+ * Calculate total amount of the day (gross sales before expenses)
+ * Formula: White Cash + Black Cash + Card Sales
+ * This represents all income for the day before expenses are deducted
+ */
+export function calculateTotalAmountOfDay(ctx: BotContext): number {
+  const reportData = ctx.session.reportData;
+
+  const whiteCashAmount = reportData?.whiteCashAmount ?? 0;
+  const blackCashAmount = reportData?.blackCashAmount ?? 0;
+  const cardSalesAmount = reportData?.cardSalesAmount ?? 0;
+
+  return whiteCashAmount + blackCashAmount + cardSalesAmount;
+}
+
+/**
  * Calculate total sales from report data
  * Formula: Cash Amount (White + Black Cash) + Card Sales - Total Expenses
  */

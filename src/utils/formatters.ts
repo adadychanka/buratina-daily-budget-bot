@@ -42,6 +42,12 @@ export function formatReportSummary(reportData: ReportData): string {
       ? `⚠️ Cashbox: ${formatAmount(cashboxAmount)} (Negative balance!)`
       : `💰 Cashbox: ${formatAmount(cashboxAmount)}`;
 
+  // Calculate total amount of the day (gross sales before expenses)
+  const totalAmountOfDay =
+    (reportData.whiteCashAmount ?? 0) +
+    (reportData.blackCashAmount ?? 0) +
+    (reportData.cardSalesAmount ?? 0);
+
   return `
 📊 Report Summary:
 
@@ -58,6 +64,7 @@ ${expensesText}
 ${cashboxDisplay}
 📝 Notes: ${reportData.notes || 'None'}
 
+📊 Total Amount of the Day: ${formatAmount(totalAmountOfDay)}
 📈 Total Sales: ${formatAmount(reportData.totalSales)}
   `.trim();
 }
@@ -97,9 +104,16 @@ export function formatReportForSheets(reportData: ReportData): string[] {
     (reportData.whiteCashAmount ?? 0) + (reportData.blackCashAmount ?? 0) - totalExpenses;
   const cashboxAmount = reportData.cashboxAmount ?? calculatedCashboxAmount;
 
+  // Calculate total amount of the day (gross sales before expenses)
+  const totalAmountOfDay =
+    (reportData.whiteCashAmount ?? 0) +
+    (reportData.blackCashAmount ?? 0) +
+    (reportData.cardSalesAmount ?? 0);
+
   return [
     format(reportData.reportDate, 'yyyy-MM-dd'), // Date
-    reportData.totalSales.toString(), // Total Sales
+    reportData.totalSales.toString(), // Total Sales (net)
+    totalAmountOfDay.toString(), // Total Amount of the Day (gross)
     cashAmount.toString(), // Cash Amount (calculated)
     reportData.whiteCashAmount.toString(), // White Cash
     reportData.blackCashAmount.toString(), // Black Cash
