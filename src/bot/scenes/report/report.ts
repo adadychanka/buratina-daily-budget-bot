@@ -5,7 +5,7 @@ import type { BotContext } from '../../../types/bot';
 import { MESSAGES, PROMPTS, REPORT_STEPS, SCENES } from '../../../utils/constants';
 import { handleCallbackQuery } from './handlers/callbackHandlers';
 import { handleTextInput } from './handlers/textHandlers';
-import { calculateCashAmount } from './helpers/calculationHelpers';
+import { calculateCashAmount, calculateCashboxAmount } from './helpers/calculationHelpers';
 import { initializeExpenses } from './helpers/expenseHelpers';
 
 export const reportScene = new Scenes.BaseScene<BotContext>(SCENES.REPORT);
@@ -20,7 +20,7 @@ reportScene.enter(async (ctx) => {
       ctx.session = {};
     }
 
-    // Check if we have partial data and recalculate cashAmount if needed
+    // Check if we have partial data and recalculate cashAmount and cashboxAmount if needed
     if (ctx.session.reportData) {
       const whiteCashAmount = ctx.session.reportData.whiteCashAmount;
       const blackCashAmount = ctx.session.reportData.blackCashAmount;
@@ -28,6 +28,15 @@ reportScene.enter(async (ctx) => {
       // If we have whiteCashAmount or blackCashAmount, recalculate cashAmount
       if (whiteCashAmount !== undefined || blackCashAmount !== undefined) {
         ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
+      }
+
+      // If we have expenses or cash data, recalculate cashboxAmount
+      if (
+        whiteCashAmount !== undefined ||
+        blackCashAmount !== undefined ||
+        (ctx.session.reportData.expenses && ctx.session.reportData.expenses.length > 0)
+      ) {
+        ctx.session.reportData.cashboxAmount = calculateCashboxAmount(ctx);
       }
     }
 

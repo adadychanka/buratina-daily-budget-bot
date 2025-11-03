@@ -30,6 +30,18 @@ export function formatReportSummary(reportData: ReportData): string {
     (reportData.whiteCashAmount ?? 0) + (reportData.blackCashAmount ?? 0);
   const cashAmount = reportData.cashAmount ?? calculatedCashAmount;
 
+  // Calculate cashboxAmount to ensure it's correct (whiteCash + blackCash - expenses)
+  const totalExpenses = reportData.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const calculatedCashboxAmount =
+    (reportData.whiteCashAmount ?? 0) + (reportData.blackCashAmount ?? 0) - totalExpenses;
+  const cashboxAmount = reportData.cashboxAmount ?? calculatedCashboxAmount;
+
+  // Format cashbox amount with warning if negative
+  const cashboxDisplay =
+    cashboxAmount < 0
+      ? `⚠️ Cashbox: ${formatAmount(cashboxAmount)} (Negative balance!)`
+      : `💰 Cashbox: ${formatAmount(cashboxAmount)}`;
+
   return `
 📊 Report Summary:
 
@@ -43,7 +55,7 @@ export function formatReportSummary(reportData: ReportData): string {
 💳 Card Sales: ${formatAmount(reportData.cardSalesAmount)}
 📦 Expenses (${reportData.expenses.length} items):
 ${expensesText}
-💰 Cashbox: ${formatAmount(reportData.cashboxAmount)}
+${cashboxDisplay}
 📝 Notes: ${reportData.notes || 'None'}
 
 📈 Total Sales: ${formatAmount(reportData.totalSales)}
@@ -80,6 +92,11 @@ export function formatReportForSheets(reportData: ReportData): string[] {
     (reportData.whiteCashAmount ?? 0) + (reportData.blackCashAmount ?? 0);
   const cashAmount = reportData.cashAmount ?? calculatedCashAmount;
 
+  // Calculate cashboxAmount to ensure it's correct (whiteCash + blackCash - expenses)
+  const calculatedCashboxAmount =
+    (reportData.whiteCashAmount ?? 0) + (reportData.blackCashAmount ?? 0) - totalExpenses;
+  const cashboxAmount = reportData.cashboxAmount ?? calculatedCashboxAmount;
+
   return [
     format(reportData.reportDate, 'yyyy-MM-dd'), // Date
     reportData.totalSales.toString(), // Total Sales
@@ -90,7 +107,7 @@ export function formatReportForSheets(reportData: ReportData): string[] {
     reportData.cardSalesAmount.toString(), // Card Sales
     totalExpenses.toString(), // Total Expenses
     expensesDetails, // Expenses Details
-    reportData.cashboxAmount.toString(), // Cashbox Amount
+    cashboxAmount.toString(), // Cashbox Amount (calculated, can be negative)
     reportData.notes || '', // Notes
   ];
 }

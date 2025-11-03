@@ -2,7 +2,7 @@ import { logger } from '../../../../config/logger';
 import type { BotContext } from '../../../../types/bot';
 import { MESSAGES, PROMPTS, REPORT_STEPS } from '../../../../utils/constants';
 import { formatAmount, formatDateForDisplay } from '../../../../utils/formatters';
-import { calculateCashAmount } from '../helpers/calculationHelpers';
+import { calculateCashAmount, calculateCashboxAmount } from '../helpers/calculationHelpers';
 import { getEditingField, isEditMode, setEditingField } from '../helpers/editHelpers';
 import {
   addExpense,
@@ -123,30 +123,6 @@ export async function handleCardSalesAmount(ctx: BotContext, userInput: string) 
 }
 
 /**
- * Handle cashbox amount input
- */
-export async function handleCashboxAmount(ctx: BotContext, userInput: string) {
-  const validation = validateAmountWithPrompt(userInput);
-
-  if (!validation.isValid) {
-    if (validation.errorMessage) {
-      await ctx.reply(validation.errorMessage);
-    }
-    return;
-  }
-
-  if (ctx.session.reportData) {
-    ctx.session.reportData.cashboxAmount = validation.value;
-  }
-  ctx.session.step = REPORT_STEPS.NOTES;
-
-  await ctx.reply(
-    `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.value ?? 0)}\n\n${PROMPTS.NOTES}`
-  );
-  logger.info(`User ${ctx.from?.id} entered cashbox amount: ${validation.value}`);
-}
-
-/**
  * Handle notes input
  */
 export async function handleNotes(ctx: BotContext, userInput: string) {
@@ -210,6 +186,11 @@ export async function handleExpenseDescription(ctx: BotContext, userInput: strin
       description,
     });
 
+    // Recalculate cashboxAmount after expense is added (if in edit mode or after expenses step)
+    if (ctx.session.reportData && (isEditMode(ctx) || ctx.session.step === REPORT_STEPS.EXPENSES)) {
+      ctx.session.reportData.cashboxAmount = calculateCashboxAmount(ctx);
+    }
+
     clearExpenseCollection(ctx);
 
     // Show expenses list and ask if they want to add more
@@ -259,9 +240,6 @@ async function handleEditFieldInput(ctx: BotContext, userInput: string) {
     case 'cardSalesAmount':
       await handleEditCardSalesInput(ctx, userInput);
       break;
-    case 'cashboxAmount':
-      await handleEditCashboxInput(ctx, userInput);
-      break;
     case 'notes':
       await handleEditNotesInput(ctx, userInput);
       break;
@@ -291,8 +269,9 @@ async function handleEditWhiteCashAmountInput(ctx: BotContext, userInput: string
 
   if (ctx.session.reportData) {
     ctx.session.reportData.whiteCashAmount = validation.value;
-    // Recalculate cashAmount after whiteCash is updated
+    // Recalculate cashAmount and cashboxAmount after whiteCash is updated
     ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
+    ctx.session.reportData.cashboxAmount = calculateCashboxAmount(ctx);
   }
 
   await ctx.reply(
@@ -323,8 +302,9 @@ async function handleEditBlackCashAmountInput(ctx: BotContext, userInput: string
       ctx.session.reportData.blackCashLocation = undefined;
     }
 
-    // Recalculate cashAmount after blackCash is updated
+    // Recalculate cashAmount and cashboxAmount after blackCash is updated
     ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
+    ctx.session.reportData.cashboxAmount = calculateCashboxAmount(ctx);
   }
 
   await ctx.reply(
@@ -359,30 +339,6 @@ async function handleEditCardSalesInput(ctx: BotContext, userInput: string) {
 
   setEditingField(ctx, undefined);
   logger.info(`User ${ctx.from?.id} updated card sales amount to ${validation.value}`);
-}
-
-async function handleEditCashboxInput(ctx: BotContext, userInput: string) {
-  const validation = validateAmountWithPrompt(userInput);
-
-  if (!validation.isValid) {
-    if (validation.errorMessage) {
-      await ctx.reply(validation.errorMessage);
-    }
-    return;
-  }
-
-  if (ctx.session.reportData) {
-    ctx.session.reportData.cashboxAmount = validation.value;
-  }
-
-  await ctx.reply(
-    `✅ Cashbox Amount updated: ${formatAmount(validation.value)}\n\n` +
-      'Select another field to edit or finish:',
-    getEditFieldsKeyboard(ctx.session.reportData ?? {})
-  );
-
-  setEditingField(ctx, undefined);
-  logger.info(`User ${ctx.from?.id} updated cashbox amount to ${validation.value}`);
 }
 
 async function handleEditNotesInput(ctx: BotContext, userInput: string) {
@@ -429,6 +385,8 @@ async function handleEditExpensesInput(ctx: BotContext, userInput: string) {
     if (ctx.session.reportData) {
       ctx.session.reportData.expenses = [];
       initializeExpenses(ctx);
+      // Recalculate cashboxAmount after expenses are cleared
+      ctx.session.reportData.cashboxAmount = calculateCashboxAmount(ctx);
     }
 
     await ctx.reply(
@@ -492,9 +450,6 @@ export async function handleTextInput(ctx: BotContext, userInput: string) {
       break;
     case REPORT_STEPS.CARD_SALES_AMOUNT:
       await handleCardSalesAmount(ctx, userInput);
-      break;
-    case REPORT_STEPS.CASHBOX_AMOUNT:
-      await handleCashboxAmount(ctx, userInput);
       break;
     case REPORT_STEPS.NOTES:
       await handleNotes(ctx, userInput);

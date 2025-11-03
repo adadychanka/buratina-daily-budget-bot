@@ -12,7 +12,11 @@ import {
   formatDateForDisplay,
   formatReportSummary,
 } from '../../../../utils/formatters';
-import { calculateCashAmount, updateTotalSales } from '../helpers/calculationHelpers';
+import {
+  calculateCashAmount,
+  calculateCashboxAmount,
+  updateTotalSales,
+} from '../helpers/calculationHelpers';
 import { getDateFromCallback } from '../helpers/dateHelpers';
 import {
   exitEditMode,
@@ -156,10 +160,16 @@ export async function handleExpenseAdd(ctx: BotContext) {
  */
 export async function handleExpenseSkip(ctx: BotContext) {
   initializeExpenses(ctx);
-  ctx.session.step = REPORT_STEPS.CASHBOX_AMOUNT;
+
+  // Auto-calculate cashboxAmount after expenses are skipped
+  if (ctx.session.reportData) {
+    ctx.session.reportData.cashboxAmount = calculateCashboxAmount(ctx);
+  }
+
+  ctx.session.step = REPORT_STEPS.NOTES;
 
   await ctx.answerCbQuery();
-  await ctx.editMessageText(`⏭️ Expenses skipped\n\n${PROMPTS.CASHBOX_AMOUNT}`);
+  await ctx.editMessageText(`⏭️ Expenses skipped\n\n${PROMPTS.NOTES}`);
 
   logger.info(`User ${ctx.from?.id} skipped expenses`);
 }
@@ -182,10 +192,19 @@ export async function handleExpenseAnother(ctx: BotContext) {
 export async function handleExpenseDone(ctx: BotContext) {
   clearExpenseCollection(ctx);
 
+  // Auto-calculate cashboxAmount after expenses are completed
+  if (ctx.session.reportData) {
+    ctx.session.reportData.cashboxAmount = calculateCashboxAmount(ctx);
+  }
+
   // Check if in edit mode
   const editingField = getEditingField(ctx);
   if (editingField === 'expenses') {
-    // In edit mode - return to field selection
+    // In edit mode - recalculate cashboxAmount and return to field selection
+    if (ctx.session.reportData) {
+      ctx.session.reportData.cashboxAmount = calculateCashboxAmount(ctx);
+    }
+
     await ctx.answerCbQuery();
     await ctx.editMessageText(
       `✅ Expenses updated\n\n` + 'Select another field to edit or finish:',
@@ -195,11 +214,11 @@ export async function handleExpenseDone(ctx: BotContext) {
     setEditingField(ctx, undefined);
     logger.info(`User ${ctx.from?.id} finished editing expenses`);
   } else {
-    // Normal flow - continue to next step
-    ctx.session.step = REPORT_STEPS.CASHBOX_AMOUNT;
+    // Normal flow - skip to NOTES step (cashboxAmount is calculated automatically)
+    ctx.session.step = REPORT_STEPS.NOTES;
 
     await ctx.answerCbQuery();
-    await ctx.editMessageText(`✅ Expenses saved\n\n${PROMPTS.CASHBOX_AMOUNT}`);
+    await ctx.editMessageText(`✅ Expenses saved\n\n${PROMPTS.NOTES}`);
 
     logger.info(`User ${ctx.from?.id} finished adding expenses`);
   }
@@ -209,9 +228,10 @@ export async function handleExpenseDone(ctx: BotContext) {
  * Handle "Confirm Report" button
  */
 export async function handleConfirmReport(ctx: BotContext) {
-  // Recalculate cashAmount before confirming to ensure it's up-to-date
+  // Recalculate cashAmount and cashboxAmount before confirming to ensure they're up-to-date
   if (ctx.session.reportData) {
     ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
+    ctx.session.reportData.cashboxAmount = calculateCashboxAmount(ctx);
   }
 
   await ctx.answerCbQuery();
@@ -229,9 +249,10 @@ export async function handleConfirmReport(ctx: BotContext) {
  * Handle "Edit Report" button
  */
 export async function handleEditReport(ctx: BotContext) {
-  // Recalculate cashAmount before entering edit mode to ensure correct display
+  // Recalculate cashAmount and cashboxAmount before entering edit mode to ensure correct display
   if (ctx.session.reportData) {
     ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
+    ctx.session.reportData.cashboxAmount = calculateCashboxAmount(ctx);
   }
 
   await ctx.answerCbQuery();
@@ -318,19 +339,6 @@ export async function handleEditExpenses(ctx: BotContext) {
 }
 
 /**
- * Handle editing cashbox amount
- */
-export async function handleEditCashbox(ctx: BotContext) {
-  await ctx.answerCbQuery();
-  setEditingField(ctx, 'cashboxAmount');
-
-  const currentValue = ctx.session.reportData?.cashboxAmount;
-  await ctx.editMessageText(
-    formatCurrentValueMessage('Cashbox Amount', formatAmount(currentValue ?? 0))
-  );
-}
-
-/**
  * Handle editing notes
  */
 export async function handleEditNotes(ctx: BotContext) {
@@ -364,9 +372,10 @@ export async function handleDoneEditing(ctx: BotContext) {
   await ctx.answerCbQuery();
   exitEditMode(ctx);
 
-  // Recalculate cashAmount after exiting edit mode
+  // Recalculate cashAmount and cashboxAmount after exiting edit mode
   if (ctx.session.reportData) {
     ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
+    ctx.session.reportData.cashboxAmount = calculateCashboxAmount(ctx);
   }
 
   // Recalculate total sales
@@ -468,9 +477,6 @@ export async function handleCallbackQuery(ctx: BotContext) {
           break;
         case EDIT_CALLBACKS.EDIT_EXPENSES:
           await handleEditExpenses(ctx);
-          break;
-        case EDIT_CALLBACKS.EDIT_CASHBOX:
-          await handleEditCashbox(ctx);
           break;
         case EDIT_CALLBACKS.EDIT_NOTES:
           await handleEditNotes(ctx);

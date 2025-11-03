@@ -15,6 +15,21 @@ export function calculateCashAmount(ctx: BotContext): number {
 }
 
 /**
+ * Calculate cashbox amount from white cash, black cash, and expenses
+ * Formula: White Cash + Black Cash - Total Expenses
+ * Can be negative if expenses exceed cash
+ */
+export function calculateCashboxAmount(ctx: BotContext): number {
+  const reportData = ctx.session.reportData;
+
+  const whiteCashAmount = reportData?.whiteCashAmount ?? 0;
+  const blackCashAmount = reportData?.blackCashAmount ?? 0;
+  const totalExpenses = getTotalExpenses(ctx);
+
+  return whiteCashAmount + blackCashAmount - totalExpenses;
+}
+
+/**
  * Calculate total sales from report data
  * Formula: Cash Amount (White + Black Cash) + Card Sales - Total Expenses
  */

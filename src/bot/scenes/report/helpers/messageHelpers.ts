@@ -90,13 +90,7 @@ export function getEditFieldsKeyboard(reportData: Partial<ReportData>) {
     ),
   ]);
 
-  buttons.push([
-    Markup.button.callback(
-      `${EDIT_BUTTONS.CASHBOX} (${formatAmount(reportData.cashboxAmount ?? 0)})`,
-      EDIT_CALLBACKS.EDIT_CASHBOX
-    ),
-  ]);
-
+  // Note: Cashbox Amount is calculated automatically and cannot be edited directly
   buttons.push([
     Markup.button.callback(
       `${EDIT_BUTTONS.NOTES} ${reportData.notes ? '(set)' : '(none)'}`,
