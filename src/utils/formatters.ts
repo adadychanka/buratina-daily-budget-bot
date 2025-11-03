@@ -25,12 +25,17 @@ export function formatReportSummary(reportData: ReportData): string {
           .join('\n')
       : 'No expenses';
 
+  // Calculate cashAmount to ensure it's correct (whiteCash + blackCash)
+  const calculatedCashAmount =
+    (reportData.whiteCashAmount ?? 0) + (reportData.blackCashAmount ?? 0);
+  const cashAmount = reportData.cashAmount ?? calculatedCashAmount;
+
   return `
 📊 Report Summary:
 
 📅 Report Date: ${formatDateWithRelative(reportData.reportDate)}
 
-💰 Cash: ${formatAmount(reportData.cashAmount)}
+💰 Cash: ${formatAmount(cashAmount)}
 💳 White Cash: ${formatAmount(reportData.whiteCashAmount)}
 🖤 Black Cash: ${formatAmount(reportData.blackCashAmount)} (${
     reportData.blackCashLocation || 'N/A'
@@ -70,10 +75,15 @@ export function formatReportForSheets(reportData: ReportData): string[] {
 
   const totalExpenses = reportData.expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
+  // Calculate cashAmount to ensure it's correct (whiteCash + blackCash)
+  const calculatedCashAmount =
+    (reportData.whiteCashAmount ?? 0) + (reportData.blackCashAmount ?? 0);
+  const cashAmount = reportData.cashAmount ?? calculatedCashAmount;
+
   return [
     format(reportData.reportDate, 'yyyy-MM-dd'), // Date
     reportData.totalSales.toString(), // Total Sales
-    reportData.cashAmount.toString(), // Cash Amount
+    cashAmount.toString(), // Cash Amount (calculated)
     reportData.whiteCashAmount.toString(), // White Cash
     reportData.blackCashAmount.toString(), // Black Cash
     reportData.blackCashLocation || '', // Black Cash Location

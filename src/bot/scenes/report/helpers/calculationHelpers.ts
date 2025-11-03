@@ -2,19 +2,31 @@ import type { BotContext } from '../../../../types/bot';
 import { getTotalExpenses } from './expenseHelpers';
 
 /**
+ * Calculate cash amount from white cash and black cash
+ * Formula: White Cash + Black Cash (where Black Cash is optional and defaults to 0)
+ */
+export function calculateCashAmount(ctx: BotContext): number {
+  const reportData = ctx.session.reportData;
+
+  const whiteCashAmount = reportData?.whiteCashAmount ?? 0;
+  const blackCashAmount = reportData?.blackCashAmount ?? 0;
+
+  return whiteCashAmount + blackCashAmount;
+}
+
+/**
  * Calculate total sales from report data
- * Formula: Cash + White Cash + Black Cash + Card Sales - Total Expenses
+ * Formula: Cash Amount (White + Black Cash) + Card Sales - Total Expenses
  */
 export function calculateTotalSales(ctx: BotContext): number {
   const reportData = ctx.session.reportData;
 
-  const cashAmount = reportData?.cashAmount ?? 0;
-  const whiteCashAmount = reportData?.whiteCashAmount ?? 0;
-  const blackCashAmount = reportData?.blackCashAmount ?? 0;
+  // Use calculated cashAmount (which is whiteCash + blackCash)
+  const cashAmount = calculateCashAmount(ctx);
   const cardSalesAmount = reportData?.cardSalesAmount ?? 0;
   const totalExpenses = getTotalExpenses(ctx);
 
-  return cashAmount + whiteCashAmount + blackCashAmount + cardSalesAmount - totalExpenses;
+  return cashAmount + cardSalesAmount - totalExpenses;
 }
 
 /**
@@ -42,13 +54,13 @@ export function getTotalSalesBreakdown(ctx: BotContext): {
 } {
   const reportData = ctx.session.reportData;
 
-  const cashAmount = reportData?.cashAmount ?? 0;
+  // Use calculated cashAmount
+  const cashAmount = calculateCashAmount(ctx);
   const whiteCashAmount = reportData?.whiteCashAmount ?? 0;
   const blackCashAmount = reportData?.blackCashAmount ?? 0;
   const cardSalesAmount = reportData?.cardSalesAmount ?? 0;
   const totalExpenses = getTotalExpenses(ctx);
-  const totalSales =
-    cashAmount + whiteCashAmount + blackCashAmount + cardSalesAmount - totalExpenses;
+  const totalSales = cashAmount + cardSalesAmount - totalExpenses;
 
   return {
     cashAmount,

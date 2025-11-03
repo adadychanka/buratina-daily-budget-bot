@@ -52,13 +52,7 @@ export function getEditFieldsKeyboard(reportData: Partial<ReportData>) {
   const buttons = [];
 
   // Show current values in button labels
-  buttons.push([
-    Markup.button.callback(
-      `${EDIT_BUTTONS.CASH} (${formatAmount(reportData.cashAmount ?? 0)})`,
-      EDIT_CALLBACKS.EDIT_CASH
-    ),
-  ]);
-
+  // Note: Cash Amount is calculated automatically and cannot be edited directly
   buttons.push([
     Markup.button.callback(
       `${EDIT_BUTTONS.WHITE_CASH} (${formatAmount(reportData.whiteCashAmount ?? 0)})`,

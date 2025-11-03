@@ -2,6 +2,7 @@ import { logger } from '../../../../config/logger';
 import type { BotContext } from '../../../../types/bot';
 import { MESSAGES, PROMPTS, REPORT_STEPS } from '../../../../utils/constants';
 import { formatAmount, formatDateForDisplay } from '../../../../utils/formatters';
+import { calculateCashAmount } from '../helpers/calculationHelpers';
 import { getEditingField, isEditMode, setEditingField } from '../helpers/editHelpers';
 import {
   addExpense,
@@ -25,33 +26,6 @@ import {
 } from '../helpers/validationHelpers';
 
 /**
- * Handle cash amount input
- */
-export async function handleCashAmount(ctx: BotContext, userInput: string) {
-  const validation = validateAmountWithPrompt(userInput);
-
-  if (!validation.isValid) {
-    if (validation.errorMessage) {
-      await ctx.reply(validation.errorMessage);
-    }
-    return;
-  }
-
-  if (!ctx.session.reportData) {
-    ctx.session.reportData = {};
-  }
-  ctx.session.reportData.cashAmount = validation.value;
-  ctx.session.step = REPORT_STEPS.WHITE_CASH_AMOUNT;
-
-  await ctx.reply(
-    `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.value ?? 0)}\n\n${
-      PROMPTS.WHITE_CASH_AMOUNT
-    }`
-  );
-  logger.info(`User ${ctx.from?.id} entered cash amount: ${validation.value}`);
-}
-
-/**
  * Handle white cash amount input
  */
 export async function handleWhiteCashAmount(ctx: BotContext, userInput: string) {
@@ -66,6 +40,8 @@ export async function handleWhiteCashAmount(ctx: BotContext, userInput: string) 
 
   if (ctx.session.reportData) {
     ctx.session.reportData.whiteCashAmount = validation.value;
+    // Auto-calculate cashAmount after whiteCash is entered
+    ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
   }
   ctx.session.step = REPORT_STEPS.BLACK_CASH_AMOUNT;
 
@@ -92,6 +68,8 @@ export async function handleBlackCashAmount(ctx: BotContext, userInput: string) 
 
   if (ctx.session.reportData) {
     ctx.session.reportData.blackCashAmount = validation.value;
+    // Auto-calculate cashAmount after blackCash is entered
+    ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
   }
 
   // If black cash > 0, ask for location; otherwise skip to card sales
@@ -105,10 +83,9 @@ export async function handleBlackCashAmount(ctx: BotContext, userInput: string) 
     );
   } else {
     ctx.session.step = REPORT_STEPS.CARD_SALES_AMOUNT;
+    const cashAmount = ctx.session.reportData?.cashAmount ?? 0;
     await ctx.reply(
-      `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.value ?? 0)}\n\n${
-        PROMPTS.CARD_SALES_AMOUNT
-      }`
+      `${MESSAGES.AMOUNT_SAVED}: ${formatAmount(validation.value ?? 0)}\n\n💰 Total Cash: ${formatAmount(cashAmount)}\n\n${PROMPTS.CARD_SALES_AMOUNT}`
     );
   }
 
@@ -273,9 +250,6 @@ async function handleEditFieldInput(ctx: BotContext, userInput: string) {
 
   // Validate and update based on field type
   switch (field) {
-    case 'cashAmount':
-      await handleEditCashAmountInput(ctx, userInput);
-      break;
     case 'whiteCashAmount':
       await handleEditWhiteCashAmountInput(ctx, userInput);
       break;
@@ -305,30 +279,6 @@ async function handleEditFieldInput(ctx: BotContext, userInput: string) {
 /**
  * Edit handlers for each field
  */
-async function handleEditCashAmountInput(ctx: BotContext, userInput: string) {
-  const validation = validateAmountWithPrompt(userInput);
-
-  if (!validation.isValid) {
-    if (validation.errorMessage) {
-      await ctx.reply(validation.errorMessage);
-    }
-    return;
-  }
-
-  if (ctx.session.reportData) {
-    ctx.session.reportData.cashAmount = validation.value;
-  }
-
-  await ctx.reply(
-    `✅ Cash Amount updated: ${formatAmount(validation.value)}\n\n` +
-      'Select another field to edit or finish:',
-    getEditFieldsKeyboard(ctx.session.reportData ?? {})
-  );
-
-  setEditingField(ctx, undefined);
-  logger.info(`User ${ctx.from?.id} updated cash amount to ${validation.value}`);
-}
-
 async function handleEditWhiteCashAmountInput(ctx: BotContext, userInput: string) {
   const validation = validateAmountWithPrompt(userInput);
 
@@ -341,6 +291,8 @@ async function handleEditWhiteCashAmountInput(ctx: BotContext, userInput: string
 
   if (ctx.session.reportData) {
     ctx.session.reportData.whiteCashAmount = validation.value;
+    // Recalculate cashAmount after whiteCash is updated
+    ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
   }
 
   await ctx.reply(
@@ -370,6 +322,9 @@ async function handleEditBlackCashAmountInput(ctx: BotContext, userInput: string
     if (validation.value === 0) {
       ctx.session.reportData.blackCashLocation = undefined;
     }
+
+    // Recalculate cashAmount after blackCash is updated
+    ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
   }
 
   await ctx.reply(
@@ -529,9 +484,6 @@ export async function handleTextInput(ctx: BotContext, userInput: string) {
 
   // Main FSM flow
   switch (currentStep) {
-    case REPORT_STEPS.CASH_AMOUNT:
-      await handleCashAmount(ctx, userInput);
-      break;
     case REPORT_STEPS.WHITE_CASH_AMOUNT:
       await handleWhiteCashAmount(ctx, userInput);
       break;

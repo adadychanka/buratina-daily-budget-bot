@@ -12,7 +12,7 @@ import {
   formatDateForDisplay,
   formatReportSummary,
 } from '../../../../utils/formatters';
-import { updateTotalSales } from '../helpers/calculationHelpers';
+import { calculateCashAmount, updateTotalSales } from '../helpers/calculationHelpers';
 import { getDateFromCallback } from '../helpers/dateHelpers';
 import {
   exitEditMode,
@@ -104,6 +104,8 @@ export async function handleWeekdaySelection(ctx: BotContext, callbackData: stri
 
   if (ctx.session.reportData) {
     ctx.session.reportData.blackCashLocation = weekday;
+    // Recalculate cashAmount after location is set
+    ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
   }
 
   // Check if in edit mode
@@ -121,12 +123,13 @@ export async function handleWeekdaySelection(ctx: BotContext, callbackData: stri
   } else {
     // Normal flow - continue to next step
     ctx.session.step = REPORT_STEPS.CARD_SALES_AMOUNT;
+    const cashAmount = ctx.session.reportData?.cashAmount ?? 0;
 
     await ctx.answerCbQuery();
     await ctx.editMessageText(
       `✅ Black Cash location saved\n\n🖤 Black Cash: ${formatAmount(
         blackCashAmount
-      )}\n📍 Location: ${weekday}\n\n${PROMPTS.CARD_SALES_AMOUNT}`
+      )}\n📍 Location: ${weekday}\n💰 Total Cash: ${formatAmount(cashAmount)}\n\n${PROMPTS.CARD_SALES_AMOUNT}`
     );
 
     logger.info(
@@ -206,6 +209,11 @@ export async function handleExpenseDone(ctx: BotContext) {
  * Handle "Confirm Report" button
  */
 export async function handleConfirmReport(ctx: BotContext) {
+  // Recalculate cashAmount before confirming to ensure it's up-to-date
+  if (ctx.session.reportData) {
+    ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
+  }
+
   await ctx.answerCbQuery();
   await ctx.editMessageText('✅ Report confirmed and saved!\n\n(Database integration coming soon)');
 
@@ -221,6 +229,11 @@ export async function handleConfirmReport(ctx: BotContext) {
  * Handle "Edit Report" button
  */
 export async function handleEditReport(ctx: BotContext) {
+  // Recalculate cashAmount before entering edit mode to ensure correct display
+  if (ctx.session.reportData) {
+    ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
+  }
+
   await ctx.answerCbQuery();
 
   startEditMode(ctx);
@@ -231,19 +244,6 @@ export async function handleEditReport(ctx: BotContext) {
   );
 
   logger.info(`User ${ctx.from?.id} entered edit mode`);
-}
-
-/**
- * Handle editing cash amount
- */
-export async function handleEditCash(ctx: BotContext) {
-  await ctx.answerCbQuery();
-  setEditingField(ctx, 'cashAmount');
-
-  const currentValue = ctx.session.reportData?.cashAmount;
-  await ctx.editMessageText(
-    formatCurrentValueMessage('Cash Amount', formatAmount(currentValue ?? 0))
-  );
 }
 
 /**
@@ -364,6 +364,11 @@ export async function handleDoneEditing(ctx: BotContext) {
   await ctx.answerCbQuery();
   exitEditMode(ctx);
 
+  // Recalculate cashAmount after exiting edit mode
+  if (ctx.session.reportData) {
+    ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
+  }
+
   // Recalculate total sales
   updateTotalSales(ctx);
 
@@ -449,9 +454,6 @@ export async function handleCallbackQuery(ctx: BotContext) {
     // Field-specific edit mode callbacks
     if (callbackData.startsWith('edit_')) {
       switch (callbackData) {
-        case EDIT_CALLBACKS.EDIT_CASH:
-          await handleEditCash(ctx);
-          break;
         case EDIT_CALLBACKS.EDIT_WHITE_CASH:
           await handleEditWhiteCash(ctx);
           break;
