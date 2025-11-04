@@ -1,4 +1,5 @@
 import { logger } from '../../../../config/logger';
+import { GoogleSheetsService } from '../../../../services/google-sheets';
 import type { BotContext, ReportData } from '../../../../types/bot';
 import {
   CALLBACKS,
@@ -10,6 +11,7 @@ import {
 import {
   formatAmount,
   formatDateForDisplay,
+  formatReportForSheets,
   formatReportSummary,
 } from '../../../../utils/formatters';
 import {
@@ -235,9 +237,42 @@ export async function handleConfirmReport(ctx: BotContext) {
   }
 
   await ctx.answerCbQuery();
-  await ctx.editMessageText('✅ Report confirmed and saved!\n\n(Database integration coming soon)');
 
-  logger.info(`User ${ctx.from?.id} confirmed report:`, ctx.session.reportData);
+  try {
+    // Save report to Google Sheets
+    const reportData = ctx.session.reportData as ReportData;
+    if (!reportData) {
+      throw new Error('Report data is missing');
+    }
+
+    const sheetsService = new GoogleSheetsService();
+    const formattedData = formatReportForSheets(reportData);
+    await sheetsService.appendRow(formattedData);
+
+    await ctx.editMessageText(
+      '✅ Report confirmed and saved to Google Sheets!\n\n📊 Your report has been successfully exported.'
+    );
+
+    logger.info(`User ${ctx.from?.id} confirmed and saved report to Google Sheets`, {
+      reportDate: reportData.reportDate,
+      totalSales: reportData.totalSales,
+    });
+  } catch (error) {
+    logger.error('Failed to save report to Google Sheets', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId: ctx.from?.id,
+    });
+
+    await ctx.editMessageText(
+      '⚠️ Report confirmed but failed to save to Google Sheets.\n\n' +
+        'Please contact support or try again later.'
+    );
+
+    // Still log the report data for debugging
+    logger.info(`User ${ctx.from?.id} confirmed report (but Google Sheets save failed):`, {
+      reportData: ctx.session.reportData,
+    });
+  }
 
   // Clear session and exit scene
   ctx.session.reportData = undefined;
