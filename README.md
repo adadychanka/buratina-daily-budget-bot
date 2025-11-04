@@ -433,6 +433,67 @@ TypeScript is configured in `tsconfig.json` with:
 - No unnecessary packages
 - Read-only credentials mount
 
+### **git-secrets Integration**
+
+The project uses [git-secrets](https://github.com/awslabs/git-secrets) from AWS Labs to automatically detect and prevent committing secrets (API keys, passwords, tokens) to the repository.
+
+#### **Installation**
+
+1. **Install git-secrets system-wide:**
+
+```bash
+git clone https://github.com/awslabs/git-secrets.git
+cd git-secrets
+sudo make install
+```
+
+2. **Initialize git-secrets in the repository:**
+
+```bash
+npm run secrets:init
+```
+
+3. **Configure detection patterns:**
+
+```bash
+npm run secrets:setup
+```
+
+This will:
+- Register AWS patterns (for detecting AWS keys)
+- Add custom patterns for Telegram bot tokens
+- Add patterns for Google API keys
+- Add patterns for private keys
+
+#### **How It Works**
+
+- **Pre-commit hook**: Scans only staged files before each commit (fast)
+- **Pre-push hook**: Scans entire repository history before push (thorough)
+
+If git-secrets is not installed, hooks will show a warning but allow the operation to proceed.
+
+#### **Available Commands**
+
+```bash
+npm run secrets:check   # Check if git-secrets is installed
+npm run secrets:init    # Initialize git-secrets in repository
+npm run secrets:setup   # Configure detection patterns
+```
+
+#### **Handling False Positives**
+
+If git-secrets detects a false positive (safe pattern that looks like a secret), you can add it to the allowlist:
+
+```bash
+git secrets --add --allowed "your-safe-pattern"
+```
+
+#### **Troubleshooting**
+
+- **git-secrets not found**: Make sure you've installed it system-wide (see Installation step 1)
+- **False positives**: Use `git secrets --add --allowed` to allow safe patterns
+- **Hooks not running**: Make sure Husky is initialized (`npm run prepare`)
+
 ## 🤝 Contributing
 
 1. Fork the repository
