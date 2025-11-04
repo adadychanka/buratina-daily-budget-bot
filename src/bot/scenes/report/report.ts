@@ -5,6 +5,7 @@ import type { BotContext } from '../../../types/bot';
 import { MESSAGES, PROMPTS, REPORT_STEPS, SCENES } from '../../../utils/constants';
 import { handleCallbackQuery } from './handlers/callbackHandlers';
 import { handleTextInput } from './handlers/textHandlers';
+import { calculateCashAmount, calculateCashboxAmount } from './helpers/calculationHelpers';
 import { initializeExpenses } from './helpers/expenseHelpers';
 
 export const reportScene = new Scenes.BaseScene<BotContext>(SCENES.REPORT);
@@ -19,16 +20,45 @@ reportScene.enter(async (ctx) => {
       ctx.session = {};
     }
 
-    // Clear any previous report data
-    ctx.session.reportData = {};
-    ctx.session.step = REPORT_STEPS.CASH_AMOUNT;
-    ctx.session.collectingExpense = false;
-    ctx.session.currentExpenseAmount = undefined;
+    // Check if we have partial data and recalculate cashAmount and cashboxAmount if needed
+    if (ctx.session.reportData) {
+      const whiteCashAmount = ctx.session.reportData.whiteCashAmount;
+      const blackCashAmount = ctx.session.reportData.blackCashAmount;
 
-    // Initialize expenses array
-    initializeExpenses(ctx);
+      // If we have whiteCashAmount or blackCashAmount, recalculate cashAmount
+      if (whiteCashAmount !== undefined || blackCashAmount !== undefined) {
+        ctx.session.reportData.cashAmount = calculateCashAmount(ctx);
+      }
 
-    await ctx.reply(`${MESSAGES.REPORT_START}\n\n${PROMPTS.CASH_AMOUNT}`);
+      // If we have expenses or cash data, recalculate cashboxAmount
+      if (
+        whiteCashAmount !== undefined ||
+        blackCashAmount !== undefined ||
+        (ctx.session.reportData.expenses && ctx.session.reportData.expenses.length > 0)
+      ) {
+        ctx.session.reportData.cashboxAmount = calculateCashboxAmount(ctx);
+      }
+    }
+
+    // Clear any previous report data if starting fresh
+    if (!ctx.session.reportData || !ctx.session.step) {
+      ctx.session.reportData = {};
+      ctx.session.step = REPORT_STEPS.WHITE_CASH_AMOUNT;
+      ctx.session.collectingExpense = false;
+      ctx.session.currentExpenseAmount = undefined;
+
+      // Initialize expenses array
+      initializeExpenses(ctx);
+
+      await ctx.reply(`${MESSAGES.REPORT_START}\n\n${PROMPTS.WHITE_CASH_AMOUNT}`);
+    } else {
+      // If we're resuming, just show current step prompt
+      const currentStep = ctx.session.step;
+      if (currentStep === REPORT_STEPS.WHITE_CASH_AMOUNT) {
+        await ctx.reply(`${MESSAGES.REPORT_START}\n\n${PROMPTS.WHITE_CASH_AMOUNT}`);
+      }
+    }
+
     logger.info(`User ${ctx.from?.id} entered report scene`);
   } catch (error) {
     logger.error('Error in report scene entry:', error);

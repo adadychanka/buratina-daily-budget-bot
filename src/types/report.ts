@@ -14,7 +14,7 @@ export const ReportSchema = z.object({
   blackCashLocation: z.string().optional(),
   cardSalesAmount: z.number().min(0, 'Card sales amount must be non-negative'),
   expenses: z.array(ExpenseSchema).default([]),
-  cashboxAmount: z.number().min(0, 'Cashbox amount must be non-negative'),
+  cashboxAmount: z.number(), // Can be negative if expenses exceed cash (white + black)
   notes: z.string().optional(),
   totalSales: z.number().min(0, 'Total sales must be non-negative'),
 });
