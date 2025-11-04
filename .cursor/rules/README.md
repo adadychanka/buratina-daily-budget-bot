@@ -19,6 +19,7 @@ This directory contains modular Cursor AI rules for the Daily Budget Bot project
 - **02-typescript-standards.mdc** - TypeScript coding standards
 - **03-code-formatting.mdc** - Biome formatting rules
 - **14-fsm-scene-architecture.mdc** - Modular FSM scene architecture patterns
+- **17-git-secrets-security.mdc** - git-secrets integration for secret detection
 
 ### Development Practices (Priority 3)
 
