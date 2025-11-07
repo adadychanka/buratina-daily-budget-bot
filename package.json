@@ -28,7 +28,10 @@
     "docker:run": "docker run --env-file .env daily-budget-bot",
     "docker:dev": "docker-compose -f docker-compose.dev.yml up --build",
     "docker:prod": "docker-compose up --build -d",
-    "prepare": "husky"
+    "prepare": "husky",
+    "secrets:check": "./scripts/secrets-check.sh",
+    "secrets:init": "./scripts/secrets-init.sh",
+    "secrets:setup": "./scripts/secrets-setup.sh"
   },
   "engines": {
     "node": ">=22.20.0"

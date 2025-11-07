@@ -222,9 +222,9 @@ The bot guides users through a step-by-step FSM process to collect structured da
 3. **Optional Fields** - Support for skippable data points
 4. **Multi-entry Support** - Ability to add multiple entries (e.g., expense items)
 5. **Data Review** - Summary view before submission
-6. **Confirmation** - User confirmation before final export
+6. **Confirmation** - User confirmation before final export to Google Sheets
 
-All input is validated using Zod schemas before being accepted.
+All input is validated using Zod schemas before being accepted. Once confirmed, the report is automatically saved to the configured Google Sheet.
 
 ## 🔐 Google Sheets Setup
 
@@ -255,22 +255,34 @@ All input is validated using Zod schemas before being accepted.
    - Email format: `service-account@project.iam.gserviceaccount.com`
 
 5. **Configure Environment**
-   - Place JSON key in `src/services/credentials/`
-   - Update `GOOGLE_CREDENTIALS_PATH` in `.env`
+   - Place JSON key file in `src/services/credentials/` directory
+   - Name it `service-account-key.json` (or update path in `.env`)
+   - Update `GOOGLE_CREDENTIALS_PATH` in `.env` to point to the JSON file
+   - Update `GOOGLE_SHEETS_ID` in `.env` with your Google Sheet ID
+   - Optionally set `GOOGLE_SHEETS_RANGE` (default: `Sheet1!A:J`)
+
+**Important:** The Service Account JSON file is excluded from git (see `.gitignore`). Never commit credentials to version control.
 
 ### **Sheet Structure**
 
-The bot exports data to Google Sheets with the following structure:
+The bot exports data to Google Sheets with the following structure (12 columns):
 
-| Column | Type    | Description                      |
-| ------ | ------- | -------------------------------- |
-| A      | Date    | Auto-generated timestamp         |
-| B      | Numeric | Calculated total                 |
-| C-G    | Numeric | Individual numeric fields        |
-| H      | Numeric | Sum of multi-entry items         |
-| I      | Text    | Concatenated multi-entry details |
-| J      | Numeric | Final numeric value              |
-| K      | Text    | Optional notes/comments          |
+| Column | Type    | Description                                    |
+| ------ | ------- | ---------------------------------------------- |
+| A      | Date    | Report date (format: yyyy-MM-dd)               |
+| B      | Numeric | Total Sales (net sales amount)                 |
+| C      | Numeric | Total Amount of the Day (gross: cash + card)   |
+| D      | Numeric | Cash Amount (calculated: white + black)        |
+| E      | Numeric | White Cash amount                              |
+| F      | Numeric | Black Cash amount                              |
+| G      | Text    | Black Cash location (weekday)                  |
+| H      | Numeric | Card Sales amount                              |
+| I      | Numeric | Total Expenses (sum of all expenses)           |
+| J      | Text    | Expenses Details (semicolon-separated list)    |
+| K      | Numeric | Cashbox Amount (calculated, can be negative)   |
+| L      | Text    | Optional notes/comments                        |
+
+**Note:** The default range is `Sheet1!A:J`, but actual data spans 12 columns (A-L). Make sure your Google Sheet has headers in the first row and enough columns to accommodate all data.
 
 You can customize the column mapping by modifying the `formatReportForSheets()` function in `src/utils/formatters.ts`.
 
@@ -356,14 +368,15 @@ npm run test:ui
 
 ### **Environment Variables**
 
-| Variable                  | Description                           | Required |
-| ------------------------- | ------------------------------------- | -------- |
-| `BOT_TOKEN`               | Telegram bot token                    | Yes      |
-| `DATABASE_URL`            | Database connection string            | Yes      |
-| `GOOGLE_SHEETS_ID`        | Google Sheet ID                       | Yes      |
-| `GOOGLE_CREDENTIALS_PATH` | Path to Service Account JSON          | Yes      |
-| `NODE_ENV`                | Environment (development/production)  | No       |
-| `LOG_LEVEL`               | Logging level (error/warn/info/debug) | No       |
+| Variable                  | Description                                    | Required |
+| ------------------------- | ---------------------------------------------- | -------- |
+| `BOT_TOKEN`               | Telegram bot token                             | Yes      |
+| `DATABASE_URL`            | Database connection string                     | Yes      |
+| `GOOGLE_SHEETS_ID`        | Google Sheet ID (from URL)                     | Yes      |
+| `GOOGLE_SHEETS_RANGE`     | Sheet range (default: `Sheet1!A:J`)            | No       |
+| `GOOGLE_CREDENTIALS_PATH` | Path to Service Account JSON key file          | Yes      |
+| `NODE_ENV`                | Environment (development/production)           | No       |
+| `LOG_LEVEL`               | Logging level (error/warn/info/debug)          | No       |
 
 ### **Biome Configuration**
 
@@ -419,6 +432,67 @@ TypeScript is configured in `tsconfig.json` with:
 - Minimal base image (Alpine)
 - No unnecessary packages
 - Read-only credentials mount
+
+### **git-secrets Integration**
+
+The project uses [git-secrets](https://github.com/awslabs/git-secrets) from AWS Labs to automatically detect and prevent committing secrets (API keys, passwords, tokens) to the repository.
+
+#### **Installation**
+
+1. **Install git-secrets system-wide:**
+
+```bash
+git clone https://github.com/awslabs/git-secrets.git
+cd git-secrets
+sudo make install
+```
+
+2. **Initialize git-secrets in the repository:**
+
+```bash
+npm run secrets:init
+```
+
+3. **Configure detection patterns:**
+
+```bash
+npm run secrets:setup
+```
+
+This will:
+- Register AWS patterns (for detecting AWS keys)
+- Add custom patterns for Telegram bot tokens
+- Add patterns for Google API keys
+- Add patterns for private keys
+
+#### **How It Works**
+
+- **Pre-commit hook**: Scans only staged files before each commit (fast)
+- **Pre-push hook**: Scans entire repository history before push (thorough)
+
+If git-secrets is not installed, hooks will show a warning but allow the operation to proceed.
+
+#### **Available Commands**
+
+```bash
+npm run secrets:check   # Check if git-secrets is installed
+npm run secrets:init    # Initialize git-secrets in repository
+npm run secrets:setup   # Configure detection patterns
+```
+
+#### **Handling False Positives**
+
+If git-secrets detects a false positive (safe pattern that looks like a secret), you can add it to the allowlist:
+
+```bash
+git secrets --add --allowed "your-safe-pattern"
+```
+
+#### **Troubleshooting**
+
+- **git-secrets not found**: Make sure you've installed it system-wide (see Installation step 1)
+- **False positives**: Use `git secrets --add --allowed` to allow safe patterns
+- **Hooks not running**: Make sure Husky is initialized (`npm run prepare`)
 
 ## 🤝 Contributing
 

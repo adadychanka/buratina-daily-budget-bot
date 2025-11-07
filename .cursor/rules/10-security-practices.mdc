@@ -240,6 +240,7 @@ const auth = new google.auth.GoogleAuth({
 ## Security Checklist
 
 - [ ] No credentials in code or git
+- [ ] git-secrets configured and running (see **17-git-secrets-security.mdc**)
 - [ ] All user input validated with Zod
 - [ ] TypeScript strict mode enabled
 - [ ] Docker containers run as non-root

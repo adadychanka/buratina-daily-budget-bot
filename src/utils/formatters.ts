@@ -174,3 +174,13 @@ export function formatDateWithRelative(date: Date): string {
 
   return `${dateStr} (${relativeStr})`;
 }
+
+// Get month name in English for Google Sheets tab name (e.g., "November", "October")
+export function getMonthNameEnglish(date: Date): string {
+  return format(date, 'MMMM');
+}
+
+// Format date for Google Sheets date column (dd.MM.yyyy format)
+export function formatDateForSheets(date: Date): string {
+  return format(date, 'dd.MM.yyyy');
+}
