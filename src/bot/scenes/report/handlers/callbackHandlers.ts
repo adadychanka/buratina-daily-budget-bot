@@ -254,8 +254,9 @@ export async function handleConfirmReport(ctx: BotContext) {
     const sheetsService = new GoogleSheetsService();
     await saveReportToSheets(sheetsService, reportData);
 
+    const reportDateFormatted = formatDateForDisplay(reportData.reportDate);
     await ctx.editMessageText(
-      '✅ Report confirmed and saved to Google Sheets!\n\n📊 Your report has been successfully exported.'
+      `✅ Report confirmed and saved to Google Sheets!\n\n📅 Report date: ${reportDateFormatted}\n📊 Your report has been successfully exported.`
     );
 
     logger.info(`User ${ctx.from?.id} confirmed and saved report to Google Sheets`, {
