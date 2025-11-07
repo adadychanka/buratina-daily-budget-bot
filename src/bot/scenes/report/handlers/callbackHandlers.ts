@@ -1,5 +1,12 @@
 import { logger } from '../../../../config/logger';
 import { GoogleSheetsService } from '../../../../services/google-sheets';
+import {
+  DateColumnNotFoundError,
+  GoogleSheetsConnectionError,
+  GoogleSheetsPermissionError,
+  SheetNotFoundError,
+} from '../../../../services/google-sheets-errors';
+import { saveReportToSheets } from '../../../../services/google-sheets-helpers';
 import type { BotContext, ReportData } from '../../../../types/bot';
 import {
   CALLBACKS,
@@ -11,7 +18,6 @@ import {
 import {
   formatAmount,
   formatDateForDisplay,
-  formatReportForSheets,
   formatReportSummary,
 } from '../../../../utils/formatters';
 import {
@@ -246,8 +252,7 @@ export async function handleConfirmReport(ctx: BotContext) {
     }
 
     const sheetsService = new GoogleSheetsService();
-    const formattedData = formatReportForSheets(reportData);
-    await sheetsService.appendRow(formattedData);
+    await saveReportToSheets(sheetsService, reportData);
 
     await ctx.editMessageText(
       '✅ Report confirmed and saved to Google Sheets!\n\n📊 Your report has been successfully exported.'
@@ -258,18 +263,51 @@ export async function handleConfirmReport(ctx: BotContext) {
       totalSales: reportData.totalSales,
     });
   } catch (error) {
-    logger.error('Failed to save report to Google Sheets', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      userId: ctx.from?.id,
-    });
+    // Handle specific error types with user-friendly messages
+    let userMessage = '⚠️ Report confirmed but failed to save to Google Sheets.\n\n';
 
-    await ctx.editMessageText(
-      '⚠️ Report confirmed but failed to save to Google Sheets.\n\n' +
-        'Please contact support or try again later.'
-    );
+    if (error instanceof SheetNotFoundError) {
+      userMessage += `Sheet "${error.sheetName}" not found. Please ensure the sheet exists in your spreadsheet.`;
+      logger.error('Sheet not found error', {
+        error: error.message,
+        sheetName: error.sheetName,
+        userId: ctx.from?.id,
+      });
+    } else if (error instanceof DateColumnNotFoundError) {
+      userMessage += `Date "${error.dateString}" not found in sheet "${error.sheetName}". Please ensure the date exists in the sheet.`;
+      logger.error('Date column not found error', {
+        error: error.message,
+        sheetName: error.sheetName,
+        dateString: error.dateString,
+        userId: ctx.from?.id,
+      });
+    } else if (error instanceof GoogleSheetsPermissionError) {
+      userMessage +=
+        'Permission denied. Please check that the service account has access to the spreadsheet.';
+      logger.error('Permission error', {
+        error: error.message,
+        userId: ctx.from?.id,
+      });
+    } else if (error instanceof GoogleSheetsConnectionError) {
+      userMessage += 'Connection error. Please try again in a few moments.';
+      logger.error('Connection error', {
+        error: error.message,
+        userId: ctx.from?.id,
+      });
+    } else {
+      // Generic error for other cases
+      logger.error('Failed to save report to Google Sheets', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        userId: ctx.from?.id,
+      });
+      userMessage += 'Please contact support or try again later.';
+    }
+
+    await ctx.editMessageText(userMessage);
 
     // Still log the report data for debugging
-    logger.info(`User ${ctx.from?.id} confirmed report (but Google Sheets save failed):`, {
+    logger.info(`User ${ctx.from?.id} confirmed report (but Google Sheets save failed)`, {
       reportData: ctx.session.reportData,
     });
   }
