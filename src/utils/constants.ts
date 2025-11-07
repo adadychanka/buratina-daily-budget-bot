@@ -113,20 +113,30 @@ export const CALLBACKS = {
 } as const;
 
 // Google Sheets constants
+// Note: RANGE is for reference only, actual range is configured via GOOGLE_SHEETS_RANGE env var
+// Actual data spans 12 columns (A-L), but range A:J is sufficient for append operation
 export const GOOGLE_SHEETS = {
   RANGE: 'Sheet1!A:J',
   COLUMNS: {
-    DATE: 0,
-    TOTAL_SALES: 1,
-    CASH_AMOUNT: 2,
-    WHITE_CASH: 3,
-    BLACK_CASH: 4,
-    BLACK_CASH_LOCATION: 5,
-    CARD_SALES: 6,
-    TOTAL_EXPENSES: 7,
-    EXPENSES_DETAILS: 8,
-    CASHBOX_AMOUNT: 9,
-    NOTES: 10,
+    DATE: 0, // Column A
+    TOTAL_SALES: 1, // Column B
+    TOTAL_AMOUNT_OF_DAY: 2, // Column C
+    CASH_AMOUNT: 3, // Column D
+    WHITE_CASH: 4, // Column E
+    BLACK_CASH: 5, // Column F
+    BLACK_CASH_LOCATION: 6, // Column G
+    CARD_SALES: 7, // Column H
+    TOTAL_EXPENSES: 8, // Column I
+    EXPENSES_DETAILS: 9, // Column J
+    CASHBOX_AMOUNT: 10, // Column K
+    NOTES: 11, // Column L
+  },
+  // Row numbers for report data cells
+  ROWS: {
+    DATE_ROW: 6, // Row containing dates (01.10.2025, 02.10.2025, etc.)
+    WHITE_CASH_ROW: 13, // Row for fiscal cash (2.1)
+    BLACK_CASH_ROW: 14, // Row for cash (2.2)
+    CARD_SALES_ROW: 16, // Row for non-cash income excluding acquiring (2.4)
   },
 } as const;
 

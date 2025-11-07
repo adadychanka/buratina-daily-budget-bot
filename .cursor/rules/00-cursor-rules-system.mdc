@@ -27,8 +27,15 @@ This project uses a modular cursor rules system stored in the `.cursor/rules/` d
     ├── 06-google-sheets-integration.mdc   # Google Sheets API
     ├── 07-testing-with-vitest.mdc         # Vitest testing
     ├── 08-docker-containerization.mdc     # Docker practices
-    ├── 09-git-workflow.mdc                # Git standards
-    └── 10-security-practices.mdc          # Security rules
+    ├── 09-git-flow-workflow.mdc           # Git Flow workflow
+    ├── 10-security-practices.mdc          # Security rules
+    ├── 11-telegraf-scenes-fsm.mdc         # Telegraf FSM patterns
+    ├── 12-constants-and-magic-strings.mdc # Constants usage
+    ├── 13-locale-and-formatting.mdc        # Locale formatting
+    ├── 14-fsm-scene-architecture.mdc       # FSM scene architecture
+    ├── 15-inline-keyboard-patterns.mdc    # Inline keyboard patterns
+    ├── 16-date-formatting-with-date-fns.mdc # Date formatting
+    └── 17-git-secrets-security.mdc        # git-secrets integration
 ```
 
 ## File Naming Convention

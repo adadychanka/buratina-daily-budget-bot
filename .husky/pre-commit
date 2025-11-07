@@ -1,1 +1,9 @@
+# Scan staged files for secrets
+if git secrets --list >/dev/null 2>&1; then
+  git secrets --scan --cached || exit 1
+else
+  echo "⚠️  Warning: git-secrets is not installed. Skipping secrets scan."
+  echo "   Install with: git clone https://github.com/awslabs/git-secrets.git && cd git-secrets && sudo make install"
+fi
+
 npx lint-staged
