@@ -24,6 +24,10 @@ COPY . .
 # Build TypeScript
 RUN npm run build
 
+# Copy and set permissions for start script
+COPY --chown=bot:nodejs scripts/start.sh /app/scripts/start.sh
+RUN chmod +x /app/scripts/start.sh
+
 # Change file ownership
 RUN chown -R bot:nodejs /app
 USER bot
@@ -33,4 +37,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD node -e "console.log('Bot is healthy')" || exit 1
 
 # Start command
-CMD ["node", "dist/index.js"]
+CMD ["/app/scripts/start.sh"]
