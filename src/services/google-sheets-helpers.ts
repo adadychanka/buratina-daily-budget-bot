@@ -2,11 +2,7 @@ import { logger } from '../config/logger';
 import type { Expense, ReportData } from '../types/bot';
 import { GOOGLE_SHEETS } from '../utils/constants';
 import { formatDateForSheets, getMonthNameEnglish } from '../utils/formatters';
-import type {
-  CellUpdate,
-  CellUpdateWithNote,
-  GoogleSheetsService,
-} from './google-sheets';
+import type { CellUpdate, CellUpdateWithNote, GoogleSheetsService } from './google-sheets';
 import { DateColumnNotFoundError, SheetNotFoundError } from './google-sheets-errors';
 
 /**
@@ -118,10 +114,7 @@ function createCellUpdates(column: string, reportData: ReportData): CellUpdate[]
  * @param expenses - Array of expenses
  * @returns Array of cell updates with notes
  */
-function createExpenseCellUpdates(
-  column: string,
-  expenses: Expense[]
-): CellUpdateWithNote[] {
+function createExpenseCellUpdates(column: string, expenses: Expense[]): CellUpdateWithNote[] {
   const updates: CellUpdateWithNote[] = [];
   const maxExpenses = GOOGLE_SHEETS.MAX_EXPENSES;
   const startRow = GOOGLE_SHEETS.ROWS.EXPENSES_START_ROW;
@@ -231,10 +224,7 @@ export async function saveReportToSheets(
 
   // Prepare all cell updates (main data + expenses) for single atomic transaction
   const mainDataUpdates = createCellUpdates(column, reportData);
-  const expenseUpdates = createExpenseCellUpdates(
-    column,
-    reportData.expenses || []
-  );
+  const expenseUpdates = createExpenseCellUpdates(column, reportData.expenses || []);
 
   // Combine all updates into single transaction
   // Convert main data updates to CellUpdateWithNote format (no notes)

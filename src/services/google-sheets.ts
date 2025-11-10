@@ -35,10 +35,38 @@ export class GoogleSheetsService {
 
   constructor() {
     // Initialize Google Auth with Service Account
-    this.auth = new google.auth.GoogleAuth({
-      keyFile: config.googleCredentialsPath,
+    // Support both keyFile (local development) and credentials JSON (production/Railway)
+    const authOptions: {
+      keyFile?: string;
+      credentials?: Record<string, unknown>;
+      scopes: string[];
+    } = {
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    };
+
+    if (config.googleCredentialsJson) {
+      // Use credentials from environment variable (for Railway/production)
+      try {
+        const credentials = JSON.parse(config.googleCredentialsJson);
+        authOptions.credentials = credentials;
+        logger.info('Using Google credentials from environment variable');
+      } catch (error) {
+        logger.error('Failed to parse GOOGLE_CREDENTIALS_JSON', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        throw new Error('Invalid GOOGLE_CREDENTIALS_JSON format. Must be valid JSON.');
+      }
+    } else if (config.googleCredentialsPath) {
+      // Use credentials from file (for local development)
+      authOptions.keyFile = config.googleCredentialsPath;
+      logger.info('Using Google credentials from file', {
+        path: config.googleCredentialsPath,
+      });
+    } else {
+      throw new Error('Either GOOGLE_CREDENTIALS_PATH or GOOGLE_CREDENTIALS_JSON must be provided');
+    }
+
+    this.auth = new google.auth.GoogleAuth(authOptions);
 
     // Initialize Google Sheets API client
     this.sheets = google.sheets({ version: 'v4', auth: this.auth });
@@ -342,10 +370,7 @@ export class GoogleSheetsService {
    * @throws SheetNotFoundError if sheet doesn't exist
    * @throws GoogleSheetsError for other API errors
    */
-  async updateCellsWithNotes(
-    sheetName: string,
-    updates: CellUpdateWithNote[]
-  ): Promise<void> {
+  async updateCellsWithNotes(sheetName: string, updates: CellUpdateWithNote[]): Promise<void> {
     if (updates.length === 0) {
       logger.warn('No cell updates provided');
       return;
@@ -441,11 +466,7 @@ export class GoogleSheetsService {
           } = {};
 
           // Set value (empty string to clear, number otherwise)
-          if (
-            update.value === '' ||
-            update.value === null ||
-            update.value === undefined
-          ) {
+          if (update.value === '' || update.value === null || update.value === undefined) {
             cellValue.userEnteredValue = { stringValue: '' };
           } else if (typeof update.value === 'number') {
             cellValue.userEnteredValue = { numberValue: update.value };
@@ -464,7 +485,9 @@ export class GoogleSheetsService {
         }
 
         // Determine fields to update
-        const hasNotes = rowUpdates.some((u) => u.note !== undefined && u.note !== null && u.note.trim().length > 0);
+        const hasNotes = rowUpdates.some(
+          (u) => u.note !== undefined && u.note !== null && u.note.trim().length > 0
+        );
         const fields = hasNotes ? 'userEnteredValue,note' : 'userEnteredValue';
 
         requests.push({
