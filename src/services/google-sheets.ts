@@ -441,7 +441,7 @@ export class GoogleSheetsService {
         // Find min and max column indices for this row
         const columnIndices = rowUpdates.map((u) => this.columnLetterToIndex(u.column));
         const minCol = Math.min(...columnIndices);
-        const maxCol = Math.max(...columnIndices);
+        // const maxCol = Math.max(...columnIndices);
 
         // Create values array for the range
         const values: Array<{

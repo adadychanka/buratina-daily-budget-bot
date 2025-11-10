@@ -1,5 +1,5 @@
 # Multi-stage build for optimization
-FROM node:22.20.0-alpine AS base
+FROM node:22.20.0-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -8,15 +8,11 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install all dependencies (including dev for build)
+RUN npm ci --ignore-scripts && npm cache clean --force
 
 # Generate Prisma client
 RUN npx prisma generate
-
-# Create user for security
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S bot -u 1001
 
 # Copy source code
 COPY . .
@@ -24,12 +20,34 @@ COPY . .
 # Build TypeScript
 RUN npm run build
 
-# Copy and set permissions for start script
-COPY --chown=bot:nodejs scripts/start.sh /app/scripts/start.sh
-RUN chmod +x /app/scripts/start.sh
+# Production stage
+FROM node:22.20.0-alpine AS production
 
-# Change file ownership
-RUN chown -R bot:nodejs /app
+# Set working directory
+WORKDIR /app
+
+# Copy dependency files
+COPY package*.json ./
+COPY prisma ./prisma/
+
+# Install only production dependencies
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+
+# Generate Prisma client (needed for runtime)
+RUN npx prisma generate
+
+# Create user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S bot -u 1001
+
+# Copy built files from builder stage
+COPY --from=builder /app/dist ./dist
+
+# Copy start script from builder stage
+COPY --from=builder /app/scripts/start.sh ./scripts/start.sh
+
+# Change file ownership and set permissions
+RUN chown -R bot:nodejs /app && chmod +x ./scripts/start.sh
 USER bot
 
 # Health check

@@ -29,7 +29,7 @@ describe('Calculation Helpers', () => {
   describe('calculateTotalSales', () => {
     it('should calculate total sales with all positive amounts', () => {
       mockCtx.session!.reportData = {
-        cashAmount: 1000,
+        cashAmount: 0,
         whiteCashAmount: 500,
         blackCashAmount: 200,
         cardSalesAmount: 1500,
@@ -39,12 +39,12 @@ describe('Calculation Helpers', () => {
       };
 
       const result = calculateTotalSales(mockCtx as BotContext);
-      expect(result).toBe(3200); // 1000 + 500 + 200 + 1500
+      expect(result).toBe(2200); // 500 + 200 + 1500
     });
 
     it('should subtract expenses from total', () => {
       mockCtx.session!.reportData = {
-        cashAmount: 1000,
+        cashAmount: 0,
         whiteCashAmount: 500,
         blackCashAmount: 0,
         cardSalesAmount: 1000,
@@ -57,7 +57,7 @@ describe('Calculation Helpers', () => {
       };
 
       const result = calculateTotalSales(mockCtx as BotContext);
-      expect(result).toBe(2200); // 1000 + 500 + 1000 - 300
+      expect(result).toBe(1200); // 500 + 1000 - 300
     });
 
     it('should handle zero amounts', () => {
@@ -84,7 +84,7 @@ describe('Calculation Helpers', () => {
 
     it('should handle negative total when expenses exceed income', () => {
       mockCtx.session!.reportData = {
-        cashAmount: 100,
+        cashAmount: 0,
         whiteCashAmount: 100,
         blackCashAmount: 0,
         cardSalesAmount: 100,
@@ -94,14 +94,14 @@ describe('Calculation Helpers', () => {
       };
 
       const result = calculateTotalSales(mockCtx as BotContext);
-      expect(result).toBe(-200); // 100 + 100 + 100 - 500
+      expect(result).toBe(-300); // 100 + 100 - 500
     });
   });
 
   describe('updateTotalSales', () => {
     it('should update total sales in session', () => {
       mockCtx.session!.reportData = {
-        cashAmount: 1000,
+        cashAmount: 0,
         whiteCashAmount: 500,
         blackCashAmount: 200,
         cardSalesAmount: 1500,
@@ -112,7 +112,7 @@ describe('Calculation Helpers', () => {
 
       updateTotalSales(mockCtx as BotContext);
 
-      expect(mockCtx.session!.reportData!.totalSales).toBe(3200);
+      expect(mockCtx.session!.reportData!.totalSales).toBe(2200);
     });
 
     it('should not throw if reportData is undefined', () => {
@@ -125,7 +125,7 @@ describe('Calculation Helpers', () => {
   describe('getTotalSalesBreakdown', () => {
     it('should return breakdown of all components', () => {
       mockCtx.session!.reportData = {
-        cashAmount: 1000,
+        cashAmount: 0,
         whiteCashAmount: 500,
         blackCashAmount: 200,
         cardSalesAmount: 1500,
@@ -140,12 +140,12 @@ describe('Calculation Helpers', () => {
       const breakdown = getTotalSalesBreakdown(mockCtx as BotContext);
 
       expect(breakdown).toEqual({
-        cashAmount: 1000,
+        cashAmount: 700, // 500 + 200 (calculated)
         whiteCashAmount: 500,
         blackCashAmount: 200,
         cardSalesAmount: 1500,
         totalExpenses: 150,
-        totalSales: 3050,
+        totalSales: 2050, // 700 + 1500 - 150
       });
     });
 
@@ -168,7 +168,7 @@ describe('Calculation Helpers', () => {
   describe('validateTotalSales', () => {
     it('should validate positive total sales', () => {
       mockCtx.session!.reportData = {
-        cashAmount: 1000,
+        cashAmount: 0,
         whiteCashAmount: 500,
         blackCashAmount: 0,
         cardSalesAmount: 1000,
@@ -180,7 +180,7 @@ describe('Calculation Helpers', () => {
       const result = validateTotalSales(mockCtx as BotContext);
 
       expect(result.isValid).toBe(true);
-      expect(result.totalSales).toBe(2500);
+      expect(result.totalSales).toBe(1500); // 500 + 1000
       expect(result.reason).toBeUndefined();
     });
 
@@ -203,7 +203,7 @@ describe('Calculation Helpers', () => {
 
     it('should invalidate negative total sales', () => {
       mockCtx.session!.reportData = {
-        cashAmount: 100,
+        cashAmount: 0,
         whiteCashAmount: 100,
         blackCashAmount: 0,
         cardSalesAmount: 100,
@@ -215,7 +215,7 @@ describe('Calculation Helpers', () => {
       const result = validateTotalSales(mockCtx as BotContext);
 
       expect(result.isValid).toBe(false);
-      expect(result.totalSales).toBe(-200);
+      expect(result.totalSales).toBe(-300); // 100 + 100 - 500
       expect(result.reason).toBe('Total sales cannot be negative. Please check your expenses.');
     });
   });
