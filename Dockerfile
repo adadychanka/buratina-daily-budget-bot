@@ -8,8 +8,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install dependencies (ignore scripts to skip husky prepare hook)
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 # Generate Prisma client
 RUN npx prisma generate
