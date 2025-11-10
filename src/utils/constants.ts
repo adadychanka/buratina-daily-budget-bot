@@ -137,7 +137,10 @@ export const GOOGLE_SHEETS = {
     WHITE_CASH_ROW: 13, // Row for fiscal cash (2.1)
     BLACK_CASH_ROW: 14, // Row for cash (2.2)
     CARD_SALES_ROW: 16, // Row for non-cash income excluding acquiring (2.4)
+    EXPENSES_START_ROW: 19, // First row for expenses
+    EXPENSES_END_ROW: 28, // Last row for expenses (10 cells total)
   },
+  MAX_EXPENSES: 10, // Maximum number of expenses per report
 } as const;
 
 // Database constants

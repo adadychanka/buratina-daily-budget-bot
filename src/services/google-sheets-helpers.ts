@@ -1,8 +1,12 @@
 import { logger } from '../config/logger';
-import type { ReportData } from '../types/bot';
+import type { Expense, ReportData } from '../types/bot';
 import { GOOGLE_SHEETS } from '../utils/constants';
 import { formatDateForSheets, getMonthNameEnglish } from '../utils/formatters';
-import type { CellUpdate, GoogleSheetsService } from './google-sheets';
+import type {
+  CellUpdate,
+  CellUpdateWithNote,
+  GoogleSheetsService,
+} from './google-sheets';
 import { DateColumnNotFoundError, SheetNotFoundError } from './google-sheets-errors';
 
 /**
@@ -46,10 +50,40 @@ function validateReportData(reportData: ReportData): void {
   if (reportData.cardSalesAmount < 0) {
     throw new Error('Card sales amount cannot be negative');
   }
+
+  // Validate expenses
+  if (!Array.isArray(reportData.expenses)) {
+    throw new Error('Expenses must be an array');
+  }
+
+  if (reportData.expenses.length > GOOGLE_SHEETS.MAX_EXPENSES) {
+    throw new Error(
+      `Maximum ${GOOGLE_SHEETS.MAX_EXPENSES} expenses allowed, got ${reportData.expenses.length}`
+    );
+  }
+
+  for (let i = 0; i < reportData.expenses.length; i++) {
+    const expense = reportData.expenses[i];
+    if (!expense) {
+      throw new Error(`Expense at index ${i} is missing`);
+    }
+
+    if (typeof expense.amount !== 'number' || Number.isNaN(expense.amount)) {
+      throw new Error(`Expense at index ${i}: amount must be a valid number`);
+    }
+
+    if (expense.amount <= 0) {
+      throw new Error(`Expense at index ${i}: amount must be greater than 0`);
+    }
+
+    if (typeof expense.description !== 'string') {
+      throw new Error(`Expense at index ${i}: description must be a string`);
+    }
+  }
 }
 
 /**
- * Creates cell updates array for report data
+ * Creates cell updates array for report data (main data only, no expenses)
  * @param column - Column letter (e.g., "E", "F")
  * @param reportData - Report data to convert
  * @returns Array of cell updates
@@ -72,6 +106,74 @@ function createCellUpdates(column: string, reportData: ReportData): CellUpdate[]
       column,
     },
   ];
+}
+
+/**
+ * Creates expense cell updates array
+ *
+ * Always creates updates for all 10 expense cells (rows 19-28).
+ * Fills with actual expenses, then clears remaining cells.
+ *
+ * @param column - Column letter (e.g., "E", "F")
+ * @param expenses - Array of expenses
+ * @returns Array of cell updates with notes
+ */
+function createExpenseCellUpdates(
+  column: string,
+  expenses: Expense[]
+): CellUpdateWithNote[] {
+  const updates: CellUpdateWithNote[] = [];
+  const maxExpenses = GOOGLE_SHEETS.MAX_EXPENSES;
+  const startRow = GOOGLE_SHEETS.ROWS.EXPENSES_START_ROW;
+
+  // Process each expense cell (always 10 cells)
+  for (let i = 0; i < maxExpenses; i++) {
+    const row = startRow + i;
+    const expense = expenses[i];
+
+    if (expense) {
+      // Process expense: trim description and limit length
+      let description = expense.description.trim();
+      const originalLength = description.length;
+
+      // Limit to 1000 characters
+      if (description.length > 1000) {
+        description = description.substring(0, 1000);
+        logger.warn('Expense description truncated', {
+          expenseIndex: i,
+          originalLength,
+          truncatedLength: 1000,
+          cell: `${column}${row}`,
+        });
+      }
+
+      // Log each expense individually
+      logger.debug('Preparing expense cell update', {
+        expenseIndex: i,
+        amount: expense.amount,
+        descriptionLength: description.length,
+        cell: `${column}${row}`,
+      });
+
+      updates.push({
+        row,
+        value: expense.amount,
+        column,
+        // Only add note if description is not empty
+        note: description.length > 0 ? description : undefined,
+      });
+    } else {
+      // Clear unused expense cell
+      updates.push({
+        row,
+        value: '', // Empty string to clear cell
+        column,
+        // No note for cleared cells
+      });
+    }
+  }
+
+  return updates;
 }
 
 /**
@@ -127,21 +229,54 @@ export async function saveReportToSheets(
     throw new DateColumnNotFoundError(sheetName, dateString);
   }
 
-  // Prepare cell updates
-  const updates = createCellUpdates(column, reportData);
+  // Prepare all cell updates (main data + expenses) for single atomic transaction
+  const mainDataUpdates = createCellUpdates(column, reportData);
+  const expenseUpdates = createExpenseCellUpdates(
+    column,
+    reportData.expenses || []
+  );
 
-  // Update cells in batch
-  await sheetsService.updateCells(sheetName, updates);
+  // Combine all updates into single transaction
+  // Convert main data updates to CellUpdateWithNote format (no notes)
+  const allUpdates: CellUpdateWithNote[] = [
+    ...mainDataUpdates.map((update) => ({
+      ...update,
+      note: undefined,
+    })),
+    ...expenseUpdates,
+  ];
+
+  // Log expenses individually before saving
+  if (reportData.expenses && reportData.expenses.length > 0) {
+    logger.info('Saving expenses to Google Sheets', {
+      expenseCount: reportData.expenses.length,
+      expenses: reportData.expenses.map((exp, idx) => ({
+        index: idx,
+        amount: exp.amount,
+        descriptionLength: exp.description.trim().length,
+        cell: `${column}${GOOGLE_SHEETS.ROWS.EXPENSES_START_ROW + idx}`,
+      })),
+    });
+  } else {
+    logger.info('No expenses to save, clearing all expense cells');
+  }
+
+  // Update all cells in single atomic transaction
+  await sheetsService.updateCellsWithNotes(sheetName, allUpdates);
 
   logger.info('Successfully saved report to Google Sheets', {
     sheetName,
     dateString,
     column,
-    cellsUpdated: updates.map((u) => `${u.column}${u.row}`),
+    cellsUpdated: allUpdates.map((u) => `${u.column}${u.row}`),
+    mainDataCells: mainDataUpdates.map((u) => `${u.column}${u.row}`),
+    expenseCells: expenseUpdates.map((u) => `${u.column}${u.row}`),
+    expenseCount: reportData.expenses?.length || 0,
     values: {
       whiteCash: reportData.whiteCashAmount,
       blackCash: reportData.blackCashAmount,
       cardSales: reportData.cardSalesAmount,
+      totalExpenses: reportData.expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0,
     },
   });
 }

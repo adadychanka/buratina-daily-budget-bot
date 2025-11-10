@@ -14,6 +14,16 @@ export interface CellUpdate {
 }
 
 /**
+ * Cell update with optional note for Google Sheets
+ */
+export interface CellUpdateWithNote {
+  row: number;
+  value: number | string; // Number for values, empty string to clear cell
+  column: string;
+  note?: string; // Optional note/comment for the cell
+}
+
+/**
  * Google Sheets Service
  *
  * Handles integration with Google Sheets API using Service Account authentication.
@@ -185,6 +195,37 @@ export class GoogleSheetsService {
   }
 
   /**
+   * Get sheet ID by sheet name
+   * @param sheetName - Name of the sheet
+   * @returns Sheet ID (number) or null if not found
+   * @throws Error if API call fails
+   */
+  async getSheetId(sheetName: string): Promise<number | null> {
+    try {
+      const response = await this.sheets.spreadsheets.get({
+        spreadsheetId: config.googleSheetsId,
+      });
+
+      const sheets = response.data.sheets || [];
+      const sheet = sheets.find((s) => s.properties?.title === sheetName);
+
+      if (!sheet || !sheet.properties?.sheetId) {
+        logger.warn('Sheet ID not found', { sheetName });
+        return null;
+      }
+
+      return sheet.properties.sheetId;
+    } catch (error) {
+      const { error: parsedError } = parseGoogleSheetsError(error);
+      logger.error('Failed to get sheet ID', {
+        error: parsedError.message,
+        sheetName,
+      });
+      throw parsedError;
+    }
+  }
+
+  /**
    * Find column index for a specific date in the sheet
    *
    * Dates are located in row 6. First date (e.g., "01.10.2025") is in column E.
@@ -270,6 +311,204 @@ export class GoogleSheetsService {
         error: parsedError.message,
         sheetName,
         dateString,
+        originalError: errorMessage,
+      });
+
+      throw parsedError;
+    }
+  }
+
+  /**
+   * Convert column letter to zero-based index (A -> 0, B -> 1, ..., Z -> 25, AA -> 26, etc.)
+   * @param columnLetter - Column letter(s) (e.g., "A", "E", "AA")
+   * @returns Zero-based column index
+   */
+  private columnLetterToIndex(columnLetter: string): number {
+    let result = 0;
+    for (let i = 0; i < columnLetter.length; i++) {
+      result = result * 26 + (columnLetter.charCodeAt(i) - 64);
+    }
+    return result - 1; // Convert to 0-based
+  }
+
+  /**
+   * Update cells with values and optional notes in a single atomic transaction
+   *
+   * Uses batchUpdate to update both cell values and notes atomically.
+   * Can handle regular cell updates (values only) and expense updates (values + notes).
+   *
+   * @param sheetName - Name of the sheet (e.g., "November")
+   * @param updates - Array of cell updates (can include notes)
+   * @throws SheetNotFoundError if sheet doesn't exist
+   * @throws GoogleSheetsError for other API errors
+   */
+  async updateCellsWithNotes(
+    sheetName: string,
+    updates: CellUpdateWithNote[]
+  ): Promise<void> {
+    if (updates.length === 0) {
+      logger.warn('No cell updates provided');
+      return;
+    }
+
+    // Validate updates
+    for (const update of updates) {
+      if (update.row < 1) {
+        throw new Error(`Invalid row number: ${update.row}. Row numbers must be >= 1`);
+      }
+      if (!update.column || update.column.trim().length === 0) {
+        throw new Error('Column letter cannot be empty');
+      }
+      // Value can be 0, empty string (for clearing), or a valid number
+      if (
+        update.value !== 0 &&
+        update.value !== '' &&
+        (typeof update.value !== 'number' ||
+          Number.isNaN(update.value) ||
+          !Number.isFinite(update.value))
+      ) {
+        throw new Error(
+          `Invalid value: ${update.value}. Value must be a finite number or empty string`
+        );
+      }
+    }
+
+    try {
+      // Get sheet ID
+      const sheetId = await this.getSheetId(sheetName);
+      if (sheetId === null) {
+        throw new SheetNotFoundError(sheetName);
+      }
+
+      // Prepare batch update requests
+      const requests: Array<{
+        updateCells: {
+          rows: Array<{
+            values: Array<{
+              userEnteredValue?: { numberValue?: number; stringValue?: string };
+              note?: string;
+            }>;
+          }>;
+          fields: string;
+          start: { sheetId: number; rowIndex: number; columnIndex: number };
+        };
+      }> = [];
+
+      // Group updates by row for efficiency (batchUpdate works better with row-based updates)
+      const updatesByRow = new Map<number, CellUpdateWithNote[]>();
+      for (const update of updates) {
+        const row = update.row - 1; // Convert to 0-based
+        if (!updatesByRow.has(row)) {
+          updatesByRow.set(row, []);
+        }
+        updatesByRow.get(row)!.push(update);
+      }
+
+      // Create updateCells requests for each row
+      for (const [rowIndex, rowUpdates] of updatesByRow.entries()) {
+        // Sort by column index to maintain order
+        rowUpdates.sort((a, b) => {
+          const colA = this.columnLetterToIndex(a.column);
+          const colB = this.columnLetterToIndex(b.column);
+          return colA - colB;
+        });
+
+        // Find min and max column indices for this row
+        const columnIndices = rowUpdates.map((u) => this.columnLetterToIndex(u.column));
+        const minCol = Math.min(...columnIndices);
+        const maxCol = Math.max(...columnIndices);
+
+        // Create values array for the range
+        const values: Array<{
+          userEnteredValue?: { numberValue?: number; stringValue?: string };
+          note?: string;
+        }> = [];
+
+        // Fill values array (some cells may be skipped)
+        let currentCol = minCol;
+        for (const update of rowUpdates) {
+          const updateCol = this.columnLetterToIndex(update.column);
+          // Fill gaps with empty cells if needed
+          while (currentCol < updateCol) {
+            values.push({});
+            currentCol++;
+          }
+
+          // Add the actual update
+          const cellValue: {
+            userEnteredValue?: { numberValue?: number; stringValue?: string };
+            note?: string;
+          } = {};
+
+          // Set value (empty string to clear, number otherwise)
+          if (
+            update.value === '' ||
+            update.value === null ||
+            update.value === undefined
+          ) {
+            cellValue.userEnteredValue = { stringValue: '' };
+          } else if (typeof update.value === 'number') {
+            cellValue.userEnteredValue = { numberValue: update.value };
+          } else {
+            // String value (for clearing cells)
+            cellValue.userEnteredValue = { stringValue: String(update.value) };
+          }
+
+          // Set note if provided
+          if (update.note !== undefined && update.note !== null && update.note.trim().length > 0) {
+            cellValue.note = update.note;
+          }
+
+          values.push(cellValue);
+          currentCol++;
+        }
+
+        // Determine fields to update
+        const hasNotes = rowUpdates.some((u) => u.note !== undefined && u.note !== null && u.note.trim().length > 0);
+        const fields = hasNotes ? 'userEnteredValue,note' : 'userEnteredValue';
+
+        requests.push({
+          updateCells: {
+            rows: [{ values }],
+            fields,
+            start: {
+              sheetId,
+              rowIndex,
+              columnIndex: minCol,
+            },
+          },
+        });
+      }
+
+      // Execute batch update
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: config.googleSheetsId,
+        requestBody: {
+          requests,
+        },
+      });
+
+      logger.info('Successfully updated cells with notes in Google Sheets', {
+        sheetId: config.googleSheetsId,
+        sheetName,
+        cellCount: updates.length,
+        cells: updates.map((u) => `${u.column}${u.row}`),
+        notesCount: updates.filter((u) => u.note && u.note.trim().length > 0).length,
+      });
+    } catch (error) {
+      const { error: parsedError } = parseGoogleSheetsError(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Check for specific error types
+      if (errorMessage.includes('Unable to parse range') || errorMessage.includes('NOT_FOUND')) {
+        throw new SheetNotFoundError(sheetName, error);
+      }
+
+      logger.error('Failed to update cells with notes in Google Sheets', {
+        error: parsedError.message,
+        sheetId: config.googleSheetsId,
+        sheetName,
+        cellCount: updates.length,
         originalError: errorMessage,
       });
 
