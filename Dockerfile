@@ -43,8 +43,11 @@ RUN adduser -S bot -u 1001
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Change file ownership
-RUN chown -R bot:nodejs /app
+# Copy start script from builder stage
+COPY --from=builder /app/scripts/start.sh ./scripts/start.sh
+
+# Change file ownership and set permissions
+RUN chown -R bot:nodejs /app && chmod +x ./scripts/start.sh
 USER bot
 
 # Health check
