@@ -2,8 +2,12 @@ import dotenv from 'dotenv';
 import { Bot } from './bot/bot';
 import { logger } from './config/logger';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables based on NODE_ENV
+// Priority: .env.local > .env.{NODE_ENV} > .env
+const nodeEnv = process.env.NODE_ENV || 'development';
+dotenv.config({ path: '.env.local' }); // Local overrides (not in git)
+dotenv.config({ path: `.env.${nodeEnv}` }); // Environment-specific
+dotenv.config(); // Default .env
 
 async function main() {
   try {
