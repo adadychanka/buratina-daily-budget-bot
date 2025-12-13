@@ -1,8 +1,14 @@
 # Multi-stage build for optimization
 FROM node:22.20.0-alpine AS builder
 
+# Cache buster ARG to force clean rebuild when needed
+ARG CACHE_BUST=1
+
 # Set working directory
 WORKDIR /app
+
+# Force cache invalidation (change this value to trigger rebuild)
+RUN echo "Cache bust: ${CACHE_BUST}"
 
 # Copy dependency files
 COPY package*.json ./
