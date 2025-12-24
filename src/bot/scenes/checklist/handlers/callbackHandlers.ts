@@ -76,17 +76,24 @@ export async function handleChecklistSelection(ctx: BotContext, callbackData: st
 
     await ctx.answerCbQuery();
 
-    // Send first message with keyboard and motivational message
+    // Send first message with motivational message
     if (messages.length > 0) {
       const firstMessage = `${motivationalMessage}\n\n${messages[0]}`;
+      const isOnlyMessage = messages.length === 1;
+
       await ctx.editMessageText(firstMessage, {
         parse_mode: 'Markdown',
-        reply_markup: getChecklistActionsKeyboard().reply_markup,
+        reply_markup: isOnlyMessage ? getChecklistActionsKeyboard().reply_markup : undefined,
       });
 
       // Send additional messages if checklist is too long
+      // Add buttons only to the last message
       for (let i = 1; i < messages.length; i++) {
-        await ctx.reply(messages[i], { parse_mode: 'Markdown' });
+        const isLastMessage = i === messages.length - 1;
+        await ctx.reply(messages[i], {
+          parse_mode: 'Markdown',
+          reply_markup: isLastMessage ? getChecklistActionsKeyboard().reply_markup : undefined,
+        });
       }
     }
 
