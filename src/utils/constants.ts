@@ -4,11 +4,13 @@ export const BOT_COMMANDS = {
   HELP: '/help',
   REPORT: '/report',
   HISTORY: '/history',
+  CHECKLIST: '/checklist',
 } as const;
 
 // Scene constants
 export const SCENES = {
   REPORT: 'report',
+  CHECKLIST: 'checklist',
 } as const;
 
 // Report step constants
@@ -47,6 +49,25 @@ export const MESSAGES = {
   AMOUNT_SAVED: '✅ Amount saved',
   REPORT_SUMMARY: '📊 Report Summary:',
   REPORT_COMPLETED: 'Report completed! (More fields will be added later)',
+  // Checklist messages
+  CHECKLIST_LIST: '📋 Available checklists:',
+  CHECKLIST_SELECTED: '📋 Checklist:',
+  CHECKLIST_COMPLETED: '✅ Checklist completed!',
+  CHECKLIST_CANCELLED: '❌ Checklist cancelled.',
+  CHECKLIST_ERROR: 'An error occurred while loading checklist.',
+  CHECKLIST_CONTINUATION: '(continuation)',
+  CHECKLIST_NO_CATEGORY: 'No Category',
+  CHECKLIST_EMPTY: '📋 *Checklist is empty*',
+  // Friendly messages when checklist is selected
+  CHECKLIST_MOTIVATIONAL_MESSAGES: [
+    "Alright, let's go through this! 😊",
+    'Here we go, checking everything step by step 📝',
+    'Nothing fancy, just going through the list ✨',
+    "Quick check and we're done! ⚡",
+    'Okay, let me see what we have here 👀',
+    "Let's check everything so we don't miss anything 🎯",
+    'Take it easy, you got this! 💪',
+  ],
 } as const;
 
 // Report field prompts
@@ -85,6 +106,9 @@ export const BUTTONS = {
   CONFIRM: '✅ Confirm',
   EDIT: '✏️ Edit',
   CANCEL: '❌ Cancel',
+  // Checklist buttons
+  CHECKLIST_DONE: '✅ Done',
+  CHECKLIST_CANCEL: '❌ Cancel',
 } as const;
 
 // Callback data constants
@@ -110,6 +134,10 @@ export const CALLBACKS = {
   CONFIRM_REPORT: 'confirm_report',
   EDIT_REPORT: 'edit_report',
   CANCEL_REPORT: 'cancel_report',
+  // Checklist
+  CHECKLIST_SELECT: 'checklist_select',
+  CHECKLIST_COMPLETE: 'checklist_complete',
+  CHECKLIST_CANCEL: 'checklist_cancel',
 } as const;
 
 // Google Sheets constants
@@ -185,4 +213,11 @@ export const EDIT_BUTTONS = {
   NOTES: '📝 Notes',
   REPORT_DATE: '📅 Report Date',
   DONE_EDITING: '✅ Done Editing',
+} as const;
+
+// Checklist step constants
+export const CHECKLIST_STEPS = {
+  LIST: 'list',
+  VIEWING: 'viewing',
+  COMPLETED: 'completed',
 } as const;
