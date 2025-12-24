@@ -6,6 +6,7 @@ import { MESSAGES, SCENES } from '../utils/constants';
 import { helpHandler } from './handlers/help';
 import { historyHandler } from './handlers/history';
 import { startHandler } from './handlers/start';
+import { checklistScene } from './scenes/checklist/checklist';
 import { reportScene } from './scenes/report/report';
 
 export class Bot {
@@ -16,7 +17,7 @@ export class Bot {
     this.bot = new Telegraf<BotContext>(config.botToken);
 
     // Create stage with scenes
-    this.stage = new Scenes.Stage<BotContext>([reportScene]);
+    this.stage = new Scenes.Stage<BotContext>([reportScene, checklistScene]);
 
     this.setupMiddleware();
     this.setupHandlers();
@@ -46,6 +47,9 @@ export class Bot {
 
     // Report command - enter the report scene
     this.bot.command('report', (ctx) => ctx.scene.enter(SCENES.REPORT));
+
+    // Checklist command - enter the checklist scene
+    this.bot.command('checklist', (ctx) => ctx.scene.enter(SCENES.CHECKLIST));
 
     // Error handling
     this.bot.catch((err, ctx) => {

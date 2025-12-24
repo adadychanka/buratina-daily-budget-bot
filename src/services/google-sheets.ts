@@ -553,4 +553,122 @@ export class GoogleSheetsService {
     }
     return result;
   }
+
+  /**
+   * Get list of all sheet names from checklist spreadsheet
+   * @returns Array of sheet names
+   * @throws Error if API call fails
+   */
+  async getSheetNames(): Promise<string[]> {
+    try {
+      const response = await this.sheets.spreadsheets.get({
+        spreadsheetId: config.checklistSheetsId,
+      });
+
+      const sheets = response.data.sheets || [];
+      const sheetNames = sheets
+        .map((sheet) => sheet.properties?.title)
+        .filter((name): name is string => name !== undefined);
+
+      logger.info('Successfully retrieved sheet names', {
+        sheetId: config.checklistSheetsId,
+        count: sheetNames.length,
+      });
+
+      return sheetNames;
+    } catch (error) {
+      const { error: parsedError } = parseGoogleSheetsError(error);
+      logger.error('Failed to get sheet names', {
+        error: parsedError.message,
+        sheetId: config.checklistSheetsId,
+      });
+      throw parsedError;
+    }
+  }
+
+  /**
+   * Get checklist data from a specific sheet
+   * Reads columns A and B, parses categories and items
+   * Supports both formats: with empty rows between categories and without
+   * @param sheetName - Name of the sheet to read
+   * @returns Checklist data structure
+   * @throws Error if API call fails or sheet not found
+   */
+  async getChecklistData(sheetName: string): Promise<{
+    name: string;
+    categories: Array<{ name: string; items: Array<{ text: string }> }>;
+    itemsWithoutCategory: Array<{ text: string }>;
+  }> {
+    try {
+      // Read columns A and B
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: config.checklistSheetsId,
+        range: `${sheetName}!A:B`,
+      });
+
+      const rows = response.data.values || [];
+
+      const categories: Array<{ name: string; items: Array<{ text: string }> }> = [];
+      const itemsWithoutCategory: Array<{ text: string }> = [];
+      let currentCategory: { name: string; items: Array<{ text: string }> } | null = null;
+
+      for (const row of rows) {
+        const columnA = row[0]?.toString().trim() || '';
+        const columnB = row[1]?.toString().trim() || '';
+
+        // If both are empty, skip (empty row)
+        if (!columnA && !columnB) {
+          continue;
+        }
+
+        // If A has text, it's a category
+        if (columnA) {
+          // Save previous category if exists
+          if (currentCategory) {
+            categories.push(currentCategory);
+          }
+          // Start new category
+          currentCategory = {
+            name: columnA,
+            items: [],
+          };
+        } else if (columnB) {
+          // A is empty, B has text - it's an item
+          const item = { text: columnB };
+          if (currentCategory) {
+            currentCategory.items.push(item);
+          } else {
+            // No current category, add to itemsWithoutCategory
+            itemsWithoutCategory.push(item);
+          }
+        }
+      }
+
+      // Save last category if exists
+      if (currentCategory) {
+        categories.push(currentCategory);
+      }
+
+      logger.info('Successfully parsed checklist data', {
+        sheetId: config.checklistSheetsId,
+        sheetName,
+        categoriesCount: categories.length,
+        itemsWithoutCategoryCount: itemsWithoutCategory.length,
+      });
+
+      return {
+        name: sheetName,
+        categories,
+        itemsWithoutCategory,
+      };
+    } catch (error) {
+      const { error: parsedError } = parseGoogleSheetsError(error);
+      logger.error('Failed to get checklist data', {
+        error: parsedError.message,
+        sheetId: config.checklistSheetsId,
+        sheetName,
+      });
+      throw parsedError;
+    }
+  }
 }

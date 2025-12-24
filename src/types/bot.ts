@@ -7,6 +7,7 @@ export interface SessionData extends Scenes.SceneSession {
   currentExpenseAmount?: number;
   editMode?: boolean;
   editingField?: string;
+  checklistData?: ChecklistData;
 }
 
 export interface BotContext extends Context {
@@ -39,4 +40,26 @@ export interface UserSession {
   step?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Checklist types
+export interface ChecklistItem {
+  text: string;
+}
+
+export interface ChecklistCategory {
+  name: string;
+  items: ChecklistItem[];
+}
+
+export interface Checklist {
+  name: string;
+  categories: ChecklistCategory[];
+  itemsWithoutCategory: ChecklistItem[];
+}
+
+export interface ChecklistData {
+  selectedChecklist?: string;
+  step?: string;
+  names?: string[]; // Store checklist names for callback handling
 }
