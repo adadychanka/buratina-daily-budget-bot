@@ -13,6 +13,8 @@ const configSchema = z
     googleSheetsRange: z.string().default('Sheet1!A:J'),
     googleCredentialsPath: z.string().optional(),
     googleCredentialsJson: z.string().optional(),
+    // Checklist Sheets configuration
+    checklistSheetsId: z.string().min(1, 'CHECKLIST_SHEETS_ID is required'),
 
     // App configuration
     nodeEnv: z.enum(['development', 'production', 'test']).default('development'),
@@ -32,6 +34,7 @@ export const config = configSchema.parse({
   googleSheetsRange: process.env.GOOGLE_SHEETS_RANGE,
   googleCredentialsPath: process.env.GOOGLE_CREDENTIALS_PATH,
   googleCredentialsJson: process.env.GOOGLE_CREDENTIALS_JSON,
+  checklistSheetsId: process.env.CHECKLIST_SHEETS_ID,
   nodeEnv: process.env.NODE_ENV,
   logLevel: process.env.LOG_LEVEL,
 });
