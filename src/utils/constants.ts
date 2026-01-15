@@ -5,12 +5,14 @@ export const BOT_COMMANDS = {
   REPORT: '/report',
   HISTORY: '/history',
   CHECKLIST: '/checklist',
+  CASHBOX: '/cashbox',
 } as const;
 
 // Scene constants
 export const SCENES = {
   REPORT: 'report',
   CHECKLIST: 'checklist',
+  CASHBOX: 'cashbox',
 } as const;
 
 // Report step constants
@@ -68,6 +70,11 @@ export const MESSAGES = {
     "Let's check everything so we don't miss anything 🎯",
     'Take it easy, you got this! 💪',
   ],
+  // Cashbox messages
+  CASHBOX_START: '💰 Enter cashbox amount at the start of shift',
+  CASHBOX_CANCELLED: '❌ Cashbox input cancelled.',
+  CASHBOX_COMPLETED: '✅ Cashbox amount saved successfully!',
+  CASHBOX_ERROR: 'An error occurred. Please try again or use /cancel.',
 } as const;
 
 // Report field prompts
@@ -85,6 +92,9 @@ export const PROMPTS = {
   REPORT_DATE: '📅 Select the report date:',
   INVALID_AMOUNT: '❌ Please enter a valid amount:',
   INVALID_TEXT: '❌ Please enter valid text:',
+  // Cashbox prompts
+  CASHBOX_DATE: '📅 Select the date:',
+  CASHBOX_START_AMOUNT: '💰 Enter cashbox amount:',
 } as const;
 
 // Button labels
@@ -109,6 +119,9 @@ export const BUTTONS = {
   // Checklist buttons
   CHECKLIST_DONE: '✅ Done',
   CHECKLIST_CANCEL: '❌ Cancel',
+  // Cashbox buttons
+  CASHBOX_CONFIRM: '✅ Confirm',
+  CASHBOX_CANCEL: '❌ Cancel',
 } as const;
 
 // Callback data constants
@@ -138,6 +151,9 @@ export const CALLBACKS = {
   CHECKLIST_SELECT: 'checklist_select',
   CHECKLIST_COMPLETE: 'checklist_complete',
   CHECKLIST_CANCEL: 'checklist_cancel',
+  // Cashbox
+  CASHBOX_CONFIRM: 'cashbox_confirm',
+  CASHBOX_CANCEL: 'cashbox_cancel',
 } as const;
 
 // Google Sheets constants
@@ -167,6 +183,7 @@ export const GOOGLE_SHEETS = {
     CARD_SALES_ROW: 16, // Row for non-cash income excluding acquiring (2.4)
     EXPENSES_START_ROW: 19, // First row for expenses
     EXPENSES_END_ROW: 28, // Last row for expenses (10 cells total)
+    CASHBOX_ROW: 9, // Row for "Размен" (change money)
   },
   MAX_EXPENSES: 10, // Maximum number of expenses per report
 } as const;
@@ -220,4 +237,11 @@ export const CHECKLIST_STEPS = {
   LIST: 'list',
   VIEWING: 'viewing',
   COMPLETED: 'completed',
+} as const;
+
+// Cashbox step constants
+export const CASHBOX_STEPS = {
+  DATE: 'cashboxDate',
+  AMOUNT: 'cashboxAmount',
+  CONFIRMATION: 'cashboxConfirmation',
 } as const;
