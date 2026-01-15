@@ -1,5 +1,5 @@
 import { logger } from '../config/logger';
-import type { Expense, ReportData } from '../types/bot';
+import type { CashboxData, Expense, ReportData } from '../types/bot';
 import { GOOGLE_SHEETS } from '../utils/constants';
 import { formatDateForSheets, getMonthNameEnglish } from '../utils/formatters';
 import type { CellUpdate, CellUpdateWithNote, GoogleSheetsService } from './google-sheets';
@@ -268,5 +268,88 @@ export async function saveReportToSheets(
       cardSales: reportData.cardSalesAmount,
       totalExpenses: reportData.expenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0,
     },
+  });
+}
+
+/**
+ * Save cashbox data to Google Sheets in the correct cell
+ *
+ * The function:
+ * 1. Determines sheet name from cashbox date (month name, e.g., "November")
+ * 2. Finds the column for the cashbox date in row 6
+ * 3. Updates cell in row 9 (cashbox/change money)
+ *
+ * @param sheetsService - Google Sheets service instance
+ * @param cashboxData - Cashbox data to save
+ * @throws Error if sheet/date not found or update fails
+ */
+export async function saveCashboxToSheets(
+  sheetsService: GoogleSheetsService,
+  cashboxData: CashboxData
+): Promise<void> {
+  // Validate input
+  if (!cashboxData || !cashboxData.date || typeof cashboxData.amount !== 'number') {
+    throw new Error('Invalid cashbox data');
+  }
+
+  if (cashboxData.amount < 0) {
+    throw new Error('Cashbox amount cannot be negative');
+  }
+
+  if (!Number.isFinite(cashboxData.amount)) {
+    throw new Error('Cashbox amount must be a finite number');
+  }
+
+  if (!(cashboxData.date instanceof Date) || Number.isNaN(cashboxData.date.getTime())) {
+    throw new Error('Cashbox date must be a valid date');
+  }
+
+  // Get sheet name from date (e.g., "November")
+  const sheetName = getMonthNameEnglish(cashboxData.date);
+
+  if (!sheetName || sheetName.trim().length === 0) {
+    throw new Error('Unable to determine sheet name from date');
+  }
+
+  // Format date for search (dd.MM.yyyy)
+  const dateString = formatDateForSheets(cashboxData.date);
+
+  logger.info('Saving cashbox to Google Sheets', {
+    sheetName,
+    dateString,
+    amount: cashboxData.amount,
+  });
+
+  // Check if sheet exists
+  const sheetExists = await sheetsService.sheetExists(sheetName);
+  if (!sheetExists) {
+    throw new SheetNotFoundError(
+      sheetName,
+      new Error(`Sheet "${sheetName}" does not exist in the spreadsheet`)
+    );
+  }
+
+  // Find column for the date
+  const column = await sheetsService.findDateColumn(sheetName, dateString);
+  if (!column) {
+    throw new DateColumnNotFoundError(sheetName, dateString);
+  }
+
+  // Prepare cell update (single cell: row 9, found column)
+  const update: CellUpdate = {
+    row: GOOGLE_SHEETS.ROWS.CASHBOX_ROW,
+    column,
+    value: cashboxData.amount,
+  };
+
+  // Update cell (use updateCells, not updateCellsWithNotes - no notes needed)
+  await sheetsService.updateCells(sheetName, [update]);
+
+  logger.info('Successfully saved cashbox to Google Sheets', {
+    sheetName,
+    dateString,
+    column,
+    cell: `${column}${GOOGLE_SHEETS.ROWS.CASHBOX_ROW}`,
+    amount: cashboxData.amount,
   });
 }

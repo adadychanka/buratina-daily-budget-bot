@@ -7,6 +7,7 @@ export const helpHandler = async (ctx: BotContext) => {
 Available commands:
 /report - Create a new report
 /history - View recent reports
+/cashbox - Enter cashbox amount at the start of shift
 /help - Show this message
 
 📊 Report creation process:

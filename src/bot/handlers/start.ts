@@ -15,6 +15,7 @@ Available commands:
 ${BOT_COMMANDS.REPORT} - Create a new report
 ${BOT_COMMANDS.CHECKLIST} - View available checklists
 ${BOT_COMMANDS.HISTORY} - View report history
+${BOT_COMMANDS.CASHBOX} - Enter cashbox amount
 ${BOT_COMMANDS.HELP} - Help
 
 Let's start creating a report? Click ${BOT_COMMANDS.REPORT}

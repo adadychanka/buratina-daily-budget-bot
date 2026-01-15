@@ -8,6 +8,7 @@ export interface SessionData extends Scenes.SceneSession {
   editMode?: boolean;
   editingField?: string;
   checklistData?: ChecklistData;
+  cashboxData?: CashboxData;
 }
 
 export interface BotContext extends Context {
@@ -62,4 +63,9 @@ export interface ChecklistData {
   selectedChecklist?: string;
   step?: string;
   names?: string[]; // Store checklist names for callback handling
+}
+
+export interface CashboxData {
+  amount: number;
+  date: Date;
 }
