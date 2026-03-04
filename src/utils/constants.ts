@@ -178,11 +178,11 @@ export const GOOGLE_SHEETS = {
   // Row numbers for report data cells
   ROWS: {
     DATE_ROW: 6, // Row containing dates (01.10.2025, 02.10.2025, etc.)
-    WHITE_CASH_ROW: 13, // Row for fiscal cash (2.1)
-    BLACK_CASH_ROW: 14, // Row for cash (2.2)
-    CARD_SALES_ROW: 16, // Row for non-cash income excluding acquiring (2.4)
-    EXPENSES_START_ROW: 19, // First row for expenses
-    EXPENSES_END_ROW: 28, // Last row for expenses (10 cells total)
+    WHITE_CASH_ROW: 14, // Row for fiscal cash (2.1)
+    BLACK_CASH_ROW: 15, // Row for cash (2.2)
+    CARD_SALES_ROW: 17, // Row for non-cash income excluding acquiring (2.4)
+    EXPENSES_START_ROW: 20, // First row for expenses
+    EXPENSES_END_ROW: 29, // Last row for expenses (10 cells total)
     CASHBOX_ROW: 9, // Row for "Размен" (change money)
   },
   MAX_EXPENSES: 10, // Maximum number of expenses per report
